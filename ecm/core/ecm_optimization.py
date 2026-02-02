@@ -17,10 +17,12 @@ Theory
 ------
 The ECM calibration quality depends on how accurately the Mueller matrices of
 calibration samples match the measured intensity matrices. The eigenvalue ratio
-λ₁₆/λ₁₅ of the K matrix quantifies this match:
-- λ₁₆/λ₁₅ < 1e-5: Excellent match
-- λ₁₆/λ₁₅ < 1e-3: Good match
-- λ₁₆/λ₁₅ > 0.1: Poor match
+of the K matrix quantifies this match:
+- ratio < 1e-4: Excellent match
+- ratio < 1e-3: Good match
+- ratio < 1e-2: Acceptable match
+- ratio < 0.1: Marginal match
+- ratio >= 0.1: Poor match
 
 By optimizing the sample parameters (angles), we find the values that best
 explain the measured data, improving calibration quality.

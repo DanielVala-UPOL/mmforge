@@ -244,11 +244,12 @@ def build_K_matrix(H_matrices: List[ndarray]) -> ndarray:
 
     **Quality Metric:**
 
-    The ratio λ₁₆/λ₁₅ indicates calibration quality:
-    - < 1e-5: Excellent
+    The eigenvalue ratio indicates calibration quality:
+    - < 1e-4: Excellent
     - < 1e-3: Good
-    - < 0.1: Acceptable
-    - > 0.1: Poor (indicates inconsistent calibration data)
+    - < 1e-2: Acceptable
+    - < 0.1: Marginal
+    - >= 0.1: Poor (indicates inconsistent calibration data)
 
     **Minimum Number of Samples:**
 

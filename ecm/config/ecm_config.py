@@ -591,7 +591,8 @@ class ECMConfig:
             self.paths.assets_dir = data_dir / 'assets'
 
         if self.paths.calibration_output_dir is None:
-            self.paths.calibration_output_dir = project_root / 'calibration_output'
+            # Default to current working directory for user convenience
+            self.paths.calibration_output_dir = Path.cwd() / 'calibration_output'
 
         if self.paths.calibration_dir is None:
             self.paths.calibration_dir = data_dir / 'calibration'

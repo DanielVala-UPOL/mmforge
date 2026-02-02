@@ -371,8 +371,6 @@ def plot_w_matrix_elements(
     with mpl.rc_context(PUBLICATION_RCPARAMS):
         fig, axes = plt.subplots(4, 4, figsize=figsize, sharex=True, facecolor='white')
 
-        subscripts = ['₁', '₂', '₃', '₄']
-
         for i in range(4):
             for j in range(4):
                 ax = axes[i, j]
@@ -380,7 +378,7 @@ def plot_w_matrix_elements(
                 element = np.squeeze(W[i, j, :])
                 ax.plot(wavelengths, element, color=colors['blue'], linewidth=1.5)
 
-                ax.set_title(f'W{subscripts[i]}{subscripts[j]}', fontsize=12)
+                ax.set_title(r'$W_{%d%d}$' % (i+1, j+1), fontsize=12)
                 ax.grid(True, linestyle='--', linewidth=0.5, color='0.85')
                 ax.tick_params(axis='both', labelsize=9)
 
@@ -431,8 +429,6 @@ def plot_a_matrix_elements(
     with mpl.rc_context(PUBLICATION_RCPARAMS):
         fig, axes = plt.subplots(4, 4, figsize=figsize, sharex=True, facecolor='white')
 
-        subscripts = ['₁', '₂', '₃', '₄']
-
         for i in range(4):
             for j in range(4):
                 ax = axes[i, j]
@@ -440,7 +436,7 @@ def plot_a_matrix_elements(
                 element = np.squeeze(A[i, j, :])
                 ax.plot(wavelengths, element, color=colors['orange'], linewidth=1.5)
 
-                ax.set_title(f'A{subscripts[i]}{subscripts[j]}', fontsize=12)
+                ax.set_title(r'$A_{%d%d}$' % (i+1, j+1), fontsize=12)
                 ax.grid(True, linestyle='--', linewidth=0.5, color='0.85')
                 ax.tick_params(axis='both', labelsize=9)
 
@@ -496,17 +492,19 @@ def plot_eigenvalue_analysis(
 
         ax.semilogy(wavelengths, eigenvalue_ratios, color=colors['purple'], linewidth=1.5)
 
-        # Threshold lines
-        ax.axhline(y=1e-3, color='g', linestyle='--', linewidth=1.0)
-        ax.axhline(y=1e-6, color='b', linestyle='--', linewidth=1.0)
+        # Threshold lines (updated per spec: Excellent < 1e-4, Good < 1e-3, Acceptable < 1e-2)
+        ax.axhline(y=1e-4, color='b', linestyle='--', linewidth=1.0)   # Excellent
+        ax.axhline(y=1e-3, color='g', linestyle='--', linewidth=1.0)   # Good
+        ax.axhline(y=1e-2, color='y', linestyle='--', linewidth=1.0)   # Acceptable
 
         # Labels
         xlim = ax.get_xlim()
-        ax.text(xlim[1], 1e-3, '  Good (10⁻³)', fontsize=12, va='center', color='g')
-        ax.text(xlim[1], 1e-6, '  Excellent (10⁻⁶)', fontsize=12, va='center', color='b')
+        ax.text(xlim[1], 1e-4, r'  Excellent ($10^{-4}$)', fontsize=12, va='center', color='b')
+        ax.text(xlim[1], 1e-3, r'  Good ($10^{-3}$)', fontsize=12, va='center', color='g')
+        ax.text(xlim[1], 1e-2, r'  Acceptable ($10^{-2}$)', fontsize=12, va='center', color='y')
 
         ax.set_xlabel('Wavelength (nm)', fontsize=14)
-        ax.set_ylabel('Eigenvalue Ratio λ₁₆/λ₁₅', fontsize=14)
+        ax.set_ylabel(r'Eigenvalue Ratio $\lambda_{16}/\lambda_{15}$', fontsize=14)
         ax.set_title('ECM Eigenvalue Ratio (Calibration Quality)', fontsize=16, fontweight='bold')
         ax.grid(True, linestyle='--', linewidth=0.5, color='0.85')
         ax.tick_params(axis='both', labelsize=14)
@@ -560,11 +558,10 @@ def plot_air_mueller_validation(
         # ---------------------------------------------------------------------
         # Panel 1: Diagonal elements (should be 1)
         # ---------------------------------------------------------------------
-        subscripts = ['₁₁', '₂₂', '₃₃', '₄₄']
         for k in range(4):
             element = np.squeeze(M_air[k, k, :])
             ax1.plot(wavelengths, element, color=color_cycle[k], linewidth=1.5,
-                     label=f'm{subscripts[k]}')
+                     label=r'$m_{%d%d}$' % (k+1, k+1))
 
         ax1.axhline(y=1.0, color='k', linestyle='--', linewidth=1.0)
 
@@ -593,7 +590,7 @@ def plot_air_mueller_validation(
         ax2.text(xlim[1], 0.1, '  10% threshold', fontsize=12, va='center')
 
         ax2.set_xlabel('Wavelength (nm)', fontsize=14)
-        ax2.set_ylabel('Max |mᵢⱼ| (i≠j)', fontsize=14)
+        ax2.set_ylabel(r'Max $|m_{ij}|$ $(i \neq j)$', fontsize=14)
         ax2.set_title('Air Mueller - Cross-talk', fontsize=14, fontweight='bold')
         ax2.grid(True, linestyle='--', linewidth=0.5, color='0.85')
         ax2.tick_params(axis='both', labelsize=14)

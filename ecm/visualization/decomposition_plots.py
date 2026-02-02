@@ -235,9 +235,11 @@ def plot_decomposed_matrix(
             facecolor='white',
         )
 
-        # Build element labels
-        symbol = config['symbol']
-        subscripts = ['₁', '₂', '₃', '₄']
+        # Build element labels using mathtext
+        # Use symbol_tex base and add indices (e.g., $M_D$ becomes $(M_D)_{11}$)
+        symbol_tex = config['symbol_tex']  # e.g., r'$M_D$'
+        # Remove outer $ signs to get inner tex, then build proper label
+        symbol_inner = symbol_tex.strip('$')  # e.g., 'M_D'
 
         for i in range(4):
             for j in range(4):
@@ -249,8 +251,8 @@ def plot_decomposed_matrix(
                 # Plot
                 ax.plot(wavelengths, element, color=line_color, linewidth=1.5)
 
-                # Element label as title
-                label = f'{symbol}{subscripts[i]}{subscripts[j]}'
+                # Element label as title (mathtext format with grouped symbol)
+                label = r'$({%s})_{%d%d}$' % (symbol_inner, i+1, j+1)
                 ax.set_title(label, fontsize=14)
 
                 # Grid
@@ -258,7 +260,7 @@ def plot_decomposed_matrix(
 
                 # Y-axis limits based on expected values
                 if i == 0 and j == 0:
-                    ax.set_ylim(0.9, 1.1)  # Diagonal m₁₁ should be ~1
+                    ax.set_ylim(0.9, 1.1)  # Diagonal should be ~1
                 else:
                     ax.set_ylim(-1.1, 1.1)
 
@@ -329,10 +331,10 @@ def plot_decomposition_summary(
     with mpl.rc_context(PUBLICATION_RCPARAMS):
         fig, axes = plt.subplots(3, 4, figsize=figsize, sharex=True, facecolor='white')
 
-        subscripts = ['₁', '₂', '₃', '₄']
-
         for row, (mtype, M, color) in enumerate(matrices):
             config = MATRIX_CONFIG[mtype]
+            # Get the inner tex symbol (e.g., 'M_D' from '$M_D$')
+            symbol_inner = config['symbol_tex'].strip('$')
 
             # Ensure 3D
             if M.ndim == 2:
@@ -345,8 +347,8 @@ def plot_decomposition_summary(
                 element = np.squeeze(M[col, col, :])
                 ax.plot(wavelengths, element, color=color, linewidth=1.5)
 
-                # Title with matrix and element
-                label = f'{config["symbol"]}{subscripts[col]}{subscripts[col]}'
+                # Title with matrix and element (mathtext format with grouped symbol)
+                label = r'$({%s})_{%d%d}$' % (symbol_inner, col+1, col+1)
                 ax.set_title(label, fontsize=12)
 
                 # Grid

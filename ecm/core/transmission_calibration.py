@@ -175,11 +175,12 @@ class CalibrationDiagnostics:
     Attributes
     ----------
     eigenvalue_ratio : ndarray, shape (n_wavelengths,)
-        Quality metric λ₁₆/λ₁₅ at each wavelength.
-        - < 1e-5: Excellent calibration
+        Quality metric at each wavelength (ratio of smallest to second-smallest eigenvalue).
+        - < 1e-4: Excellent calibration
         - < 1e-3: Good calibration
-        - < 0.1: Acceptable calibration
-        - > 0.1: Poor calibration (check data quality)
+        - < 1e-2: Acceptable calibration
+        - < 0.1: Marginal calibration
+        - >= 0.1: Poor calibration (check data quality)
 
     cond_W : ndarray, shape (n_wavelengths,)
         Condition number of W at each wavelength.
@@ -852,17 +853,19 @@ def _print_calibration_summary(
     print(f"  Min:    {np.min(ratio):.2e}")
     print(f"  Max:    {np.max(ratio):.2e}")
 
-    # Quality assessment
-    n_excellent = np.sum(ratio < 1e-5)
-    n_good = np.sum((ratio >= 1e-5) & (ratio < 1e-3))
-    n_acceptable = np.sum((ratio >= 1e-3) & (ratio < 0.1))
+    # Quality assessment (thresholds: Excellent < 1e-4, Good < 1e-3, Acceptable < 1e-2, Marginal < 0.1)
+    n_excellent = np.sum(ratio < 1e-4)
+    n_good = np.sum((ratio >= 1e-4) & (ratio < 1e-3))
+    n_acceptable = np.sum((ratio >= 1e-3) & (ratio < 1e-2))
+    n_marginal = np.sum((ratio >= 1e-2) & (ratio < 0.1))
     n_poor = np.sum(ratio >= 0.1)
 
     print(f"\nQuality distribution:")
-    print(f"  Excellent (< 1e-5): {n_excellent:4d} ({100*n_excellent/n_wl:5.1f}%)")
-    print(f"  Good (< 1e-3):      {n_good:4d} ({100*n_good/n_wl:5.1f}%)")
-    print(f"  Acceptable (< 0.1): {n_acceptable:4d} ({100*n_acceptable/n_wl:5.1f}%)")
-    print(f"  Poor (≥ 0.1):       {n_poor:4d} ({100*n_poor/n_wl:5.1f}%)")
+    print(f"  Excellent (< 1e-4):  {n_excellent:4d} ({100*n_excellent/n_wl:5.1f}%)")
+    print(f"  Good (< 1e-3):       {n_good:4d} ({100*n_good/n_wl:5.1f}%)")
+    print(f"  Acceptable (< 1e-2): {n_acceptable:4d} ({100*n_acceptable/n_wl:5.1f}%)")
+    print(f"  Marginal (< 0.1):    {n_marginal:4d} ({100*n_marginal/n_wl:5.1f}%)")
+    print(f"  Poor (>= 0.1):       {n_poor:4d} ({100*n_poor/n_wl:5.1f}%)")
 
     print(f"\nCondition numbers:")
     print(f"  cond(W) - Mean: {np.mean(diagnostics.cond_W):.1f}, Max: {np.max(diagnostics.cond_W):.1f}")

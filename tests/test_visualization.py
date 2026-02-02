@@ -440,10 +440,10 @@ class TestPlotContent:
 
         axes = fig.get_axes()
 
-        # First row should have m₁₁, m₁₂, m₁₃, m₁₄
-        expected_titles = ['m₁₁', 'm₁₂', 'm₁₃', 'm₁₄']
+        # First row should have m_11, m_12, m_13, m_14 (mathtext format)
+        expected_titles = [r'$m_{11}$', r'$m_{12}$', r'$m_{13}$', r'$m_{14}$']
         for i, title in enumerate(expected_titles):
-            assert title in axes[i].get_title()
+            assert title == axes[i].get_title()
 
         plt.close(fig)
 

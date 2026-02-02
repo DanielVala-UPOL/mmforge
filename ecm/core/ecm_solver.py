@@ -68,11 +68,12 @@ class WDiagnostics:
         Should be significantly larger than lambda_16.
 
     ratio_16_15 : float
-        Quality metric: λ₁₆/λ₁₅.
-        - < 1e-5: Excellent calibration
+        Quality metric (ratio of smallest to second-smallest eigenvalue).
+        - < 1e-4: Excellent calibration
         - < 1e-3: Good calibration
-        - < 0.1: Acceptable calibration
-        - > 0.1: Poor calibration (check data quality)
+        - < 1e-2: Acceptable calibration
+        - < 0.1: Marginal calibration
+        - >= 0.1: Poor calibration (check data quality)
 
     condition_number : float
         Condition number of W. Should be < 100 for well-aligned system.

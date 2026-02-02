@@ -18,6 +18,7 @@ Options
     --no-diagnostics    Skip diagnostic plots
     --no-save           Skip saving calibration to file
     --verbose           Increase output verbosity
+    --show-plots        Display diagnostic figures interactively
 
 Examples
 --------
@@ -95,6 +96,12 @@ def main():
         "--verbose", "-v",
         action="store_true",
         help="Increase output verbosity"
+    )
+
+    parser.add_argument(
+        "--show-plots",
+        action="store_true",
+        help="Display diagnostic figures interactively before saving"
     )
 
     args = parser.parse_args()
@@ -209,8 +216,12 @@ def main():
 
             print(f"\nDiagnostic figures saved to: {diag_dir}")
 
-            # Close figures to free memory
+            # Display figures interactively if requested
             import matplotlib.pyplot as plt
+            if args.show_plots:
+                plt.show()
+
+            # Close figures to free memory
             for fig in report.figures.values():
                 plt.close(fig)
 

@@ -41,27 +41,26 @@ from ecm.visualization.figure_utils import (
 
 def _get_element_labels(normalized: bool = True) -> list:
     """
-    Get Mueller matrix element labels.
+    Get Mueller matrix element labels using mathtext for proper rendering.
 
     Parameters
     ----------
     normalized : bool
-        If True, use lowercase (m₁₁, m₁₂, ...).
-        If False, use uppercase (M₁₁, M₁₂, ...).
+        If True, use lowercase (m_ij).
+        If False, use uppercase (M_ij).
 
     Returns
     -------
     labels : list of list
-        4×4 nested list of label strings.
+        4x4 nested list of label strings (mathtext format).
     """
     prefix = 'm' if normalized else 'M'
-    subscripts = ['₁', '₂', '₃', '₄']
 
     labels = []
     for i in range(4):
         row = []
         for j in range(4):
-            label = f'{prefix}{subscripts[i]}{subscripts[j]}'
+            label = r'$%s_{%d%d}$' % (prefix, i+1, j+1)
             row.append(label)
         labels.append(row)
 
