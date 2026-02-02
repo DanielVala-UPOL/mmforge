@@ -1,0 +1,21 @@
+# ECM Calibration - Python Dependencies
+# =====================================
+# Core dependencies for Mueller matrix polarimetry calibration
+#
+# Install with: pip install -r requirements.txt
+
+# Core scientific computing
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# Optimization and fitting
+lmfit>=1.2.0
+
+# Configuration serialization
+pyyaml>=6.0
+
+# Progress bars for long operations
+tqdm>=4.65.0
