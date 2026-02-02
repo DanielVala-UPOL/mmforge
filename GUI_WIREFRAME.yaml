@@ -1,0 +1,768 @@
+# =============================================================================
+# ECM Polarimetry GUI - Editable Wireframe Configuration
+# =============================================================================
+# Edit this file to customize the GUI layout and features.
+# This serves as both documentation and configuration reference.
+#
+# UPDATED: February 2026 - Simplified per user requirements
+# =============================================================================
+
+# Application Settings
+# --------------------
+app:
+  title: "ECM Polarimetry"
+  subtitle: "Mueller Matrix Polarimeter Calibration & Analysis"
+  icon: "📊"
+  layout: "wide"
+  initial_sidebar_state: "expanded"
+  theme:
+    primaryColor: "#1E88E5"
+    backgroundColor: "#FFFFFF"
+    secondaryBackgroundColor: "#F0F2F6"
+    textColor: "#262730"
+
+# Key Design Decisions
+# --------------------
+design_decisions:
+  plots: "plotly"                    # Use Plotly for ALL plots (interactive)
+  mueller_display: "normalized_only" # Always show normalized Mueller matrices
+  second_retarder: "auto_detect"     # Auto-detect FP2 from files
+  export_formats:
+    figures: ["png", "svg", "pdf"]   # Common image formats
+    data: ["csv", "xlsx", "json"]    # Common data formats
+  file_handling: "modern"            # Drag-drop + browse + text input
+
+# Navigation Structure
+# --------------------
+navigation:
+  style: "sidebar"
+  show_status_indicator: true  # Show "Calibrated" / "Not calibrated"
+
+  pages:
+    # =========================================================================
+    # HOME PAGE
+    # =========================================================================
+    - id: "home"
+      name: "Home"
+      icon: "🏠"
+      enabled: true
+      description: "Welcome page with workflow overview"
+
+      content:
+        - type: "title"
+          text: "ECM Polarimetry GUI"
+
+        - type: "description"
+          text: "Welcome to the ECM calibration interface for Mueller matrix polarimetry."
+
+        - type: "workflow_diagram"
+          steps:
+            - "Configure"
+            - "Calibrate"
+            - "Process"
+            - "Lu-Chipman"
+
+        - type: "status_indicator"
+          # Simple binary status - no multi-step tracking
+          states:
+            - value: true
+              label: "● Calibrated"
+              color: "green"
+            - value: false
+              label: "○ Not calibrated"
+              color: "gray"
+
+        - type: "quick_actions"
+          buttons:
+            - label: "Load Previous Calibration"
+              action: "load_calibration"
+            - label: "Start New Calibration"
+              action: "goto_configuration"
+
+    # =========================================================================
+    # CONFIGURATION PAGE (Simplified)
+    # =========================================================================
+    - id: "configuration"
+      name: "Configuration"
+      icon: "⚙️"
+      enabled: true
+      description: "Set up calibration parameters (simplified)"
+
+      # Top action buttons
+      actions:
+        - label: "Save Config"
+          action: "save_config"
+        - label: "Load Config"
+          action: "load_config"
+
+      sections:
+        # ---------------------------------------------------------------------
+        # Paths Section (with drag-drop)
+        # ---------------------------------------------------------------------
+        - id: "paths"
+          name: "Data Paths"
+          icon: "📁"
+          expanded: true
+
+          content:
+            # Drag-and-drop zone
+            - type: "drag_drop_zone"
+              label: "Drag & drop folder here or click to browse"
+              accept: "folder"
+
+            # Manual path inputs
+            - type: "path_input"
+              id: "data_dir"
+              label: "Data Directory"
+              placeholder: "/path/to/calibration/data"
+              show_browse_button: true
+              validate: true
+              help: "Folder containing calibration measurement files (.bin)"
+
+            - type: "path_input"
+              id: "output_dir"
+              label: "Output Directory"
+              placeholder: "./output"
+              default: "./calibration_output"
+              show_browse_button: true
+              help: "Where to save calibration results and plots"
+
+        # ---------------------------------------------------------------------
+        # Wavelength Settings
+        # ---------------------------------------------------------------------
+        - id: "wavelength"
+          name: "Wavelength Settings"
+          icon: "🌈"
+          expanded: true
+
+          fields:
+            - type: "range_slider"
+              id: "wavelength_range"
+              label: "Wavelength Range (nm)"
+              min: 200
+              max: 2000
+              default: [400, 1000]
+              step: 10
+
+            - type: "number_input"
+              id: "reference_wavelength"
+              label: "Reference Wavelength (nm)"
+              default: 633.0
+              help: "Reference wavelength for diagnostics (e.g., HeNe laser)"
+
+        # ---------------------------------------------------------------------
+        # Acquisition Settings (Minimal)
+        # ---------------------------------------------------------------------
+        - id: "acquisition"
+          name: "Acquisition"
+          icon: "📏"
+          expanded: true
+
+          fields:
+            - type: "number_input"
+              id: "n_angular_positions"
+              label: "Angular Positions"
+              default: 96
+              min: 48
+              max: 384
+              step: 12
+              help: "Number of angular measurement positions per rotation"
+
+          # NOTE: Rotation cycles removed (always 1)
+          # NOTE: ECM Algorithm section removed (use defaults internally)
+
+        # ---------------------------------------------------------------------
+        # Info Note
+        # ---------------------------------------------------------------------
+        - id: "info"
+          type: "info_box"
+          text: "Second retarder (FP2) is automatically detected from calibration files."
+
+    # =========================================================================
+    # CALIBRATION PAGE
+    # =========================================================================
+    - id: "calibration"
+      name: "Calibration"
+      icon: "🔧"
+      enabled: true
+      description: "Run ECM calibration"
+
+      sections:
+        # ---------------------------------------------------------------------
+        # File Discovery
+        # ---------------------------------------------------------------------
+        - id: "files"
+          name: "Calibration Files"
+          expanded: true
+
+          content:
+            - type: "button"
+              label: "Discover Files"
+              action: "discover_calibration_files"
+              primary: true
+
+            - type: "file_checklist"
+              items:
+                - key: "dark"
+                  label: "Dark"
+                  required: true
+                - key: "air"
+                  label: "Air (straight-through)"
+                  required: true
+                - key: "pol_0"
+                  label: "Polarizer 0°"
+                  required: true
+                - key: "pol_45"
+                  label: "Polarizer 45°"
+                  required: true
+                - key: "ret_90"
+                  label: "Retarder FP1 (90°)"
+                  required: true
+                - key: "ret_45"
+                  label: "Retarder FP2 (45°)"
+                  required: false
+                  auto_detect: true
+                  auto_detect_label: "[Auto-detected]"
+
+        # ---------------------------------------------------------------------
+        # Run Calibration
+        # ---------------------------------------------------------------------
+        - id: "run"
+          name: "Run"
+
+          content:
+            - type: "button"
+              label: "Run Calibration"
+              action: "run_calibration"
+              primary: true
+
+            # Progress bar ONLY - no text display
+            - type: "progress_bar"
+              id: "calibration_progress"
+              show_percentage: true
+              show_text: false  # No wavelength or ratio text
+
+        # ---------------------------------------------------------------------
+        # Quality Summary (Extended)
+        # ---------------------------------------------------------------------
+        - id: "quality"
+          name: "Quality Summary"
+          expanded: true
+          show_when: "calibration_complete"
+
+          content:
+            - type: "metrics_row"
+              metrics:
+                - label: "Wavelengths"
+                  key: "n_wavelengths"
+                - label: "Range"
+                  key: "wavelength_range"
+                  format: "{min:.0f} - {max:.0f} nm"
+                - label: "Mean Eigenvalue Ratio"
+                  key: "mean_eigenvalue_ratio"
+                  format: "{:.2e}"
+
+            # Quality breakdown with horizontal bar chart
+            - type: "quality_breakdown"
+              title: "Quality Breakdown"
+              show_bar_chart: true
+              show_counts: true
+              show_percentages: true
+              categories:
+                - name: "Excellent"
+                  threshold: "<1e-4"
+                  color: "#2E7D32"  # Dark green
+                - name: "Good"
+                  threshold: "<1e-3"
+                  color: "#4CAF50"  # Green
+                - name: "Acceptable"
+                  threshold: "<1e-2"
+                  color: "#FFC107"  # Amber
+                - name: "Marginal"
+                  threshold: "<0.1"
+                  color: "#FF9800"  # Orange
+                - name: "Poor"
+                  threshold: "≥0.1"
+                  color: "#F44336"  # Red
+
+            - type: "button_row"
+              buttons:
+                - label: "Save Calibration"
+                  action: "save_calibration"
+                - label: "Load Calibration"
+                  action: "load_calibration"
+
+        # ---------------------------------------------------------------------
+        # Diagnostic Plots (Interactive Plotly)
+        # ---------------------------------------------------------------------
+        - id: "diagnostics"
+          name: "Diagnostic Plots"
+          expanded: true
+          show_when: "calibration_complete"
+
+          content:
+            - type: "tab_group"
+              tabs:
+                - id: "eigenvalue"
+                  label: "Eigenvalue Ratio"
+                  plot_type: "plotly"
+                  plot_function: "plot_eigenvalue_ratio_plotly"
+                - id: "w_matrix"
+                  label: "W Matrix"
+                  plot_type: "plotly"
+                  plot_function: "plot_w_matrix_plotly"
+                - id: "a_matrix"
+                  label: "A Matrix"
+                  plot_type: "plotly"
+                  plot_function: "plot_a_matrix_plotly"
+                - id: "air_validation"
+                  label: "Air Validation"
+                  plot_type: "plotly"
+                  plot_function: "plot_air_validation_plotly"
+
+    # =========================================================================
+    # SAMPLE PROCESSING PAGE
+    # =========================================================================
+    - id: "processing"
+      name: "Sample Processing"
+      icon: "📈"
+      enabled: true
+      description: "Process samples with calibration"
+      prerequisite: "is_calibrated"
+      prerequisite_message: "Please load or run a calibration first."
+
+      sections:
+        # ---------------------------------------------------------------------
+        # Calibration Status
+        # ---------------------------------------------------------------------
+        - id: "status"
+          name: "Status"
+
+          content:
+            - type: "status_display"
+              calibrated_text: "● Calibrated (loaded from: {filename})"
+              not_calibrated_text: "○ Not calibrated"
+
+            - type: "button"
+              label: "Load Different Calibration"
+              action: "load_calibration"
+
+        # ---------------------------------------------------------------------
+        # Sample Selection
+        # ---------------------------------------------------------------------
+        - id: "samples"
+          name: "Sample Selection"
+          expanded: true
+
+          content:
+            - type: "drag_drop_zone"
+              label: "Drag & drop sample folder here"
+              accept: "folder"
+
+            - type: "path_input"
+              id: "sample_dir"
+              label: "Sample Directory"
+              show_browse_button: true
+
+            - type: "button"
+              label: "Discover Samples"
+              action: "discover_samples"
+
+            - type: "multiselect_checklist"
+              id: "selected_samples"
+              label: "Available Samples"
+              show_select_all: true
+              show_deselect_all: true
+
+        # ---------------------------------------------------------------------
+        # Process
+        # ---------------------------------------------------------------------
+        - id: "process"
+          name: "Process"
+
+          content:
+            - type: "button"
+              label: "Process Selected Samples"
+              action: "process_samples"
+              primary: true
+
+            - type: "progress_bar"
+              id: "processing_progress"
+
+        # ---------------------------------------------------------------------
+        # Results (Mueller Matrix Display)
+        # ---------------------------------------------------------------------
+        - id: "results"
+          name: "Results"
+          expanded: true
+          show_when: "samples_processed"
+
+          content:
+            - type: "selectbox"
+              id: "current_sample"
+              label: "Sample"
+              options_from: "processed_samples"
+
+            # View toggle
+            - type: "button_group"
+              id: "view_mode"
+              buttons:
+                - label: "4×4 Matrix"
+                  value: "full_matrix"
+                  default: true
+                - label: "Select Elements"
+                  value: "select_elements"
+                  action: "open_element_selector"
+
+            # Mueller matrix plot (NORMALIZED ONLY)
+            - type: "plotly_figure"
+              id: "mueller_plot"
+              plot_function: "create_mueller_matrix_plot"
+              normalized: true  # Always normalized
+              interactive: true
+              features:
+                - hover_values
+                - zoom
+                - pan
+                - export_png
+
+            # Export buttons
+            - type: "button_row"
+              buttons:
+                - label: "Save Results (.npz)"
+                  action: "save_mueller_npz"
+                - label: "Export Plot (.png)"
+                  action: "export_mueller_png"
+                - label: "Export Data (.csv)"
+                  action: "export_mueller_csv"
+
+    # =========================================================================
+    # MUELLER ELEMENT SELECTOR (Modal/Dialog)
+    # =========================================================================
+    - id: "mueller_selector"
+      type: "modal"
+      title: "Select Mueller Matrix Elements"
+
+      content:
+        - type: "description"
+          text: "Click to select elements to overlay on a single plot:"
+
+        # 4x4 checkbox grid
+        - type: "checkbox_grid"
+          id: "element_selection"
+          rows: 4
+          cols: 4
+          labels:
+            - ["m₁₁", "m₁₂", "m₁₃", "m₁₄"]
+            - ["m₂₁", "m₂₂", "m₂₃", "m₂₄"]
+            - ["m₃₁", "m₃₂", "m₃₃", "m₃₄"]
+            - ["m₄₁", "m₄₂", "m₄₃", "m₄₄"]
+
+        # Quick select buttons
+        # Diagonal: m11, m22, m33, m44
+        # Isotropic: m11, m12, m21, m22, m33, m34, m43, m44 (block-diagonal)
+        # Anisotropic: m13, m14, m23, m24, m31, m32, m41, m42 (block-off-diagonal)
+        - type: "button_row"
+          label: "Quick Select:"
+          buttons:
+            - label: "Show Diagonal"
+              action: "select_diagonal"
+              elements: [[0,0], [1,1], [2,2], [3,3]]
+            - label: "Show Isotropic"
+              action: "select_isotropic"
+              elements: [[0,0], [0,1], [1,0], [1,1], [2,2], [2,3], [3,2], [3,3]]
+            - label: "Show Anisotropic"
+              action: "select_anisotropic"
+              elements: [[0,2], [0,3], [1,2], [1,3], [2,0], [2,1], [3,0], [3,1]]
+            - label: "Clear All"
+              action: "clear_selection"
+
+        # Action buttons
+        - type: "button_row"
+          buttons:
+            - label: "Apply Selection"
+              action: "apply_element_selection"
+              primary: true
+            - label: "Cancel"
+              action: "close_modal"
+
+    # =========================================================================
+    # POST-PROCESSING PAGE (Lu-Chipman)
+    # =========================================================================
+    - id: "postprocessing"
+      name: "Lu-Chipman"
+      icon: "🎯"
+      enabled: true
+      description: "Lu-Chipman polar decomposition"
+      prerequisite: "samples_processed"
+      prerequisite_message: "Please process samples first."
+
+      sections:
+        # ---------------------------------------------------------------------
+        # Sample Selection
+        # ---------------------------------------------------------------------
+        - id: "sample"
+          name: "Sample"
+
+          content:
+            - type: "selectbox"
+              id: "lu_chipman_sample"
+              label: "Select Sample"
+              options_from: "processed_samples"
+
+            - type: "button"
+              label: "Load from File"
+              action: "load_mueller_from_file"
+
+            - type: "button"
+              label: "Run Decomposition"
+              action: "run_lu_chipman"
+              primary: true
+
+        # ---------------------------------------------------------------------
+        # Summary Statistics
+        # ---------------------------------------------------------------------
+        - id: "summary"
+          name: "Summary Statistics"
+          expanded: true
+          show_when: "decomposition_complete"
+
+          content:
+            - type: "statistics_table"
+              columns: ["Parameter", "Mean ± Std", "Range"]
+              rows:
+                - parameter: "Diattenuation (D)"
+                  mean_key: "D_mean"
+                  std_key: "D_std"
+                  min_key: "D_min"
+                  max_key: "D_max"
+                  format: "{:.4f}"
+                - parameter: "Retardance (R)"
+                  mean_key: "R_deg_mean"
+                  std_key: "R_deg_std"
+                  min_key: "R_deg_min"
+                  max_key: "R_deg_max"
+                  format: "{:.1f}°"
+                - parameter: "Depolarization Index (DI)"
+                  mean_key: "DI_mean"
+                  std_key: "DI_std"
+                  min_key: "DI_min"
+                  max_key: "DI_max"
+                  format: "{:.4f}"
+                - parameter: "Fast-axis (ψ)"
+                  mean_key: "psi_mean"
+                  std_key: "psi_std"
+                  min_key: "psi_min"
+                  max_key: "psi_max"
+                  format: "{:.1f}°"
+                - parameter: "Ellipticity (χ)"
+                  mean_key: "chi_mean"
+                  std_key: "chi_std"
+                  min_key: "chi_min"
+                  max_key: "chi_max"
+                  format: "{:.1f}°"
+
+        # ---------------------------------------------------------------------
+        # Parameter Plots (Interactive)
+        # ---------------------------------------------------------------------
+        - id: "parameter_plots"
+          name: "Parameter Plots"
+          expanded: true
+          show_when: "decomposition_complete"
+
+          content:
+            - type: "tab_group"
+              tabs:
+                - id: "di"
+                  label: "Depolarization Index"
+                  plot_type: "plotly"
+                  plot_function: "plot_di_plotly"
+                  interactive_features:
+                    - hover_values
+                    - reference_lines
+                    - zoom
+                - id: "retardance"
+                  label: "Retardance"
+                  plot_type: "plotly"
+                  plot_function: "plot_retardance_plotly"
+                  interactive_features:
+                    - hover_values
+                    - reference_lines  # QWP=90°, HWP=180°
+                    - curve_toggle
+                    - zoom
+                - id: "diattenuation"
+                  label: "Diattenuation"
+                  plot_type: "plotly"
+                  plot_function: "plot_diattenuation_plotly"
+                - id: "axis"
+                  label: "Axis Angles"
+                  plot_type: "plotly"
+                  plot_function: "plot_axis_angles_plotly"
+                  interactive_features:
+                    - curve_toggle  # Toggle ψ and χ independently
+
+        # ---------------------------------------------------------------------
+        # Decomposed Matrices
+        # ---------------------------------------------------------------------
+        - id: "decomposed"
+          name: "Decomposed Matrices"
+          expanded: false  # Collapsed by default
+          show_when: "decomposition_complete"
+
+          content:
+            - type: "info"
+              text: "All matrices shown normalized."
+
+            - type: "tab_group"
+              tabs:
+                - id: "m_d"
+                  label: "M_D (Diattenuator)"
+                  plot_type: "plotly"
+                  normalized: true
+                - id: "m_r"
+                  label: "M_R (Retarder)"
+                  plot_type: "plotly"
+                  normalized: true
+                - id: "m_delta"
+                  label: "M_Δ (Depolarizer)"
+                  plot_type: "plotly"
+                  normalized: true
+
+        # ---------------------------------------------------------------------
+        # Export
+        # ---------------------------------------------------------------------
+        - id: "export"
+          name: "Export"
+
+          content:
+            - type: "button_row"
+              buttons:
+                - label: "Save Decomposition (.npz)"
+                  action: "save_lu_chipman"
+                - label: "Export Plots (.png)"
+                  action: "export_lu_chipman_plots"
+                - label: "Export Data (.csv)"
+                  action: "export_lu_chipman_csv"
+
+# =============================================================================
+# PLOT CONFIGURATION
+# =============================================================================
+plots:
+  backend: "plotly"  # Primary backend for interactive plots
+
+  plotly:
+    template: "plotly_white"
+    height: 500
+    hover_mode: "x unified"
+
+    # Interactive features enabled by default
+    config:
+      displayModeBar: true
+      scrollZoom: true
+      modeBarButtonsToRemove: ["lasso2d", "select2d"]
+      toImageButtonOptions:
+        format: "png"
+        scale: 2
+
+  # Publication export settings
+  export:
+    png:
+      scale: 2
+      width: 1200
+      height: 800
+    svg:
+      scale: 1
+    pdf:
+      scale: 2
+
+  # Color palette
+  colors:
+    primary: "#1E88E5"      # Blue
+    secondary: "#FF7043"    # Orange
+    success: "#4CAF50"      # Green
+    warning: "#FFC107"      # Amber
+    error: "#F44336"        # Red
+    purple: "#7E57C2"
+    cyan: "#00ACC1"
+
+    # Quality breakdown colors
+    quality:
+      excellent: "#2E7D32"
+      good: "#4CAF50"
+      acceptable: "#FFC107"
+      marginal: "#FF9800"
+      poor: "#F44336"
+
+# =============================================================================
+# EXPORT CONFIGURATION
+# =============================================================================
+export:
+  # Figure formats
+  figure_formats:
+    - extension: "png"
+      label: "PNG Image"
+      default: true
+    - extension: "svg"
+      label: "SVG Vector"
+    - extension: "pdf"
+      label: "PDF Document"
+
+  # Data formats
+  data_formats:
+    - extension: "csv"
+      label: "CSV (Comma-separated)"
+      default: true
+    - extension: "xlsx"
+      label: "Excel Spreadsheet"
+    - extension: "json"
+      label: "JSON"
+
+  # Default filenames
+  filename_patterns:
+    calibration: "ecm_calibration_{timestamp}.npz"
+    mueller: "{sample_name}_mueller.npz"
+    lu_chipman: "{sample_name}_lu_chipman.npz"
+    mueller_csv: "{sample_name}_mueller_matrix.csv"
+    parameters_csv: "{sample_name}_parameters.csv"
+
+# =============================================================================
+# SESSION STATE KEYS
+# =============================================================================
+session_state:
+  # Configuration
+  config: "ecm_config"
+
+  # Calibration status (simple boolean)
+  is_calibrated: "is_calibrated"
+
+  # Calibration data
+  calibration_result: "calibration_result"
+  calibration_diagnostics: "calibration_diagnostics"
+  calibration_filepath: "calibration_filepath"
+
+  # Sample processing
+  processed_samples: "processed_samples"      # Dict[name, MuellerMatrixResult]
+  current_sample: "current_sample"
+
+  # Lu-Chipman
+  lu_chipman_results: "lu_chipman_results"    # Dict[name, LuChipmanResult]
+
+  # Mueller element selection
+  selected_elements: "selected_elements"       # List of (i, j) tuples
+  view_mode: "mueller_view_mode"              # "full_matrix" or "selected"
+
+# =============================================================================
+# WORKFLOW RULES
+# =============================================================================
+workflow:
+  # Enforce prerequisites
+  require_calibration_for_processing: true
+  require_processing_for_postprocessing: true
+
+  # Auto-features
+  auto_detect_second_retarder: true
+  auto_save_on_complete: false
+
+  # Defaults
+  default_output_dir: "./calibration_output"
+  rotation_cycles: 1  # Always 1, not configurable
