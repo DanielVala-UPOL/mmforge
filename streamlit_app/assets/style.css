@@ -1,0 +1,267 @@
+/* ECM Polarimetry GUI - Custom Styles */
+
+/* ============================================================================
+   DRAG-AND-DROP ZONE
+   ============================================================================ */
+
+.drag-drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+    background-color: #f9f9f9;
+    transition: border-color 0.3s, background-color 0.3s;
+}
+
+.drag-drop-zone:hover {
+    border-color: #1f77b4;
+    background-color: #f0f7ff;
+}
+
+.drag-drop-zone.active {
+    border-color: #28a745;
+    background-color: #e8f5e9;
+}
+
+
+/* ============================================================================
+   CALIBRATION STATUS INDICATORS
+   ============================================================================ */
+
+.status-calibrated {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-not-calibrated {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-indicator.green {
+    background-color: #28a745;
+}
+
+.status-indicator.red {
+    background-color: #dc3545;
+}
+
+
+/* ============================================================================
+   QUALITY BREAKDOWN COLORS
+   ============================================================================ */
+
+.quality-excellent {
+    background-color: #28a745;
+    color: white;
+}
+
+.quality-good {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.quality-acceptable {
+    background-color: #ffc107;
+    color: black;
+}
+
+.quality-marginal {
+    background-color: #fd7e14;
+    color: white;
+}
+
+.quality-poor {
+    background-color: #dc3545;
+    color: white;
+}
+
+
+/* ============================================================================
+   MUELLER MATRIX ELEMENT GRID
+   ============================================================================ */
+
+.mueller-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    max-width: 300px;
+}
+
+.mueller-element {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.mueller-element:hover {
+    background-color: #f0f2f6;
+}
+
+.mueller-element.selected {
+    background-color: #1f77b4;
+    color: white;
+    border-color: #1f77b4;
+}
+
+
+/* ============================================================================
+   WORKFLOW CARDS
+   ============================================================================ */
+
+.workflow-card {
+    text-align: center;
+    padding: 20px;
+    background-color: #f0f2f6;
+    border-radius: 10px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.workflow-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.workflow-card h3 {
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+
+.workflow-card h4 {
+    margin-bottom: 5px;
+}
+
+.workflow-card p {
+    font-size: 0.9em;
+    color: #666;
+    margin: 0;
+}
+
+
+/* ============================================================================
+   EXPANDER STYLING
+   ============================================================================ */
+
+.streamlit-expanderHeader {
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+
+/* ============================================================================
+   GENERAL LAYOUT
+   ============================================================================ */
+
+/* Remove default Streamlit padding for wider plots */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Metric card styling */
+.metric-card {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+/* Info box styling */
+.info-box {
+    background-color: #e7f3ff;
+    border-left: 4px solid #1f77b4;
+    padding: 15px;
+    border-radius: 0 8px 8px 0;
+    margin: 10px 0;
+}
+
+/* Warning box styling */
+.warning-box {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 15px;
+    border-radius: 0 8px 8px 0;
+    margin: 10px 0;
+}
+
+/* Success box styling */
+.success-box {
+    background-color: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 15px;
+    border-radius: 0 8px 8px 0;
+    margin: 10px 0;
+}
+
+
+/* ============================================================================
+   BUTTON STYLING
+   ============================================================================ */
+
+/* Primary action button */
+.primary-button {
+    background-color: #1f77b4;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.primary-button:hover {
+    background-color: #1565a0;
+}
+
+/* Secondary action button */
+.secondary-button {
+    background-color: #f0f2f6;
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.secondary-button:hover {
+    background-color: #e0e2e6;
+}
+
+
+/* ============================================================================
+   TABLE STYLING
+   ============================================================================ */
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+}
+
+.data-table th,
+.data-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.data-table th {
+    background-color: #f0f2f6;
+    font-weight: 600;
+}
+
+.data-table tr:hover {
+    background-color: #f8f9fa;
+}
