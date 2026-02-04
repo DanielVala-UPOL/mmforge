@@ -70,6 +70,28 @@ def render_sidebar():
             st.caption("Run calibration or load a saved calibration file.")
 
         # -------------------------------------------------
+        # Session Section
+        # -------------------------------------------------
+        st.markdown("---")
+        st.markdown("### Session")
+
+        if st.button("Reset Session", use_container_width=True, type="secondary"):
+            st.session_state['_confirm_reset'] = True
+
+        if st.session_state.get('_confirm_reset', False):
+            st.warning("Clear all data?")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Confirm", type="primary", use_container_width=True, key="sidebar_confirm_reset"):
+                    for key in list(st.session_state.keys()):
+                        del st.session_state[key]
+                    st.rerun()
+            with col2:
+                if st.button("Cancel", use_container_width=True, key="sidebar_cancel_reset"):
+                    st.session_state['_confirm_reset'] = False
+                    st.rerun()
+
+        # -------------------------------------------------
         # Version info at absolute bottom using CSS
         # -------------------------------------------------
         st.markdown(

@@ -123,7 +123,7 @@ def discover_samples():
     """Discover sample files in the sample directory."""
     sample_dir = st.session_state.get('sample_dir_path', '')
     if not sample_dir:
-        st.error("Please enter a sample directory path")
+        st.error("Sample directory not set. Enter the path to your sample data folder above.")
         return
 
     cfg = build_config_from_session()
@@ -138,10 +138,10 @@ def discover_samples():
         if samples.n_samples > 0:
             st.success(f"Found {samples.n_samples} sample(s)")
         else:
-            st.warning("No sample files found in directory")
+            st.warning("No sample .bin files found in directory. Check that your sample measurements are in .bin format.")
 
     except FileNotFoundError as e:
-        st.error(f"Directory not found: {e}")
+        st.error("Directory not found. Check that the sample directory path exists and is accessible.")
     except Exception as e:
         st.error(f"Error discovering samples: {e}")
 
@@ -150,17 +150,17 @@ def process_selected_samples():
     """Process all selected samples."""
     selected = st.session_state.get('selected_samples', [])
     if not selected:
-        st.error("No samples selected")
+        st.error("No samples selected. Select at least one sample from the list above.")
         return
 
     samples = st.session_state.get('discovered_samples')
     if samples is None:
-        st.error("No samples discovered")
+        st.error("No samples discovered. Click 'Discover Samples' first to find sample files.")
         return
 
     cal_result = get_calibration_result()
     if cal_result is None:
-        st.error("Calibration not available")
+        st.error("Calibration not available. Run calibration or load a saved calibration on the Calibration page first.")
         return
 
     # Get calibration diagnostics for dark subtraction
@@ -353,6 +353,7 @@ def display_results():
                 title="Mueller Matrix Comparison"
             )
             st.plotly_chart(fig, use_container_width=True)
+
         elif len(selected_for_compare) == 1:
             st.info("Select at least 2 samples to compare")
         else:
@@ -412,7 +413,7 @@ def save_results():
     """Save processed samples to .npz file."""
     processed = get_processed_samples()
     if not processed:
-        st.error("No processed samples to save")
+        st.error("No processed samples to save. Process samples first before exporting.")
         return
 
     output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'processing_output'))
@@ -441,42 +442,69 @@ def save_results():
 
 
 def export_csv():
-    """Export current sample data to CSV."""
-    current = get_current_sample()
+    """Export Mueller matrix data to CSV with selection dialog."""
     processed = get_processed_samples()
-
-    if not current or current not in processed:
-        st.error("No sample selected")
+    if not processed:
+        st.error("No processed samples available for export. Process samples first.")
         return
 
-    result = processed[current]
     cal_result = get_calibration_result()
-    # M_normalized shape is (4, 4, n_wavelengths) - third dimension is wavelengths
-    wavelengths = cal_result.wavelengths if cal_result else np.arange(result.M_normalized.shape[2])
+    sample_names = list(processed.keys())
+
+    # Show dialog in expander
+    with st.expander("CSV Export Options", expanded=True):
+        st.markdown("**Select samples to export:**")
+
+        # Sample selection
+        selected_samples = []
+        cols = st.columns(min(3, len(sample_names)))
+        for idx, name in enumerate(sample_names):
+            with cols[idx % len(cols)]:
+                if st.checkbox(name, value=True, key=f"csv_export_{name}"):
+                    selected_samples.append(name)
+
+        st.markdown("**Select data to include:**")
+        col1, col2 = st.columns(2)
+        with col1:
+            include_normalized = st.checkbox("Normalized Mueller Matrix (m11-m44)", value=True, key="csv_inc_norm")
+        with col2:
+            include_m00 = st.checkbox("M00 Transmission", value=True, key="csv_inc_m00")
+
+        if st.button("Export Selected", type="primary", disabled=len(selected_samples) == 0, key="csv_export_btn"):
+            _do_csv_export(selected_samples, include_normalized, include_m00)
+
+
+def _do_csv_export(selected_samples, include_normalized, include_m00):
+    """Actually perform the CSV export."""
+    processed = get_processed_samples()
+    cal_result = get_calibration_result()
 
     output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'processing_output'))
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Build CSV data - wavelength + all 16 Mueller elements
     import pandas as pd
 
-    data = {'wavelength_nm': wavelengths}
-    M = result.M_normalized
+    for name in selected_samples:
+        result = processed[name]
+        wavelengths = cal_result.wavelengths if cal_result else np.arange(result.M_normalized.shape[2])
 
-    for i in range(4):
-        for j in range(4):
-            col_name = f'm{i+1}{j+1}'
-            data[col_name] = M[i, j, :]
+        data = {'wavelength_nm': wavelengths}
 
-    # Add unnormalized M00 (transmission)
-    data['M00_transmission'] = result.m00
+        if include_normalized:
+            M = result.M_normalized
+            for i in range(4):
+                for j in range(4):
+                    data[f'm{i+1}{j+1}'] = M[i, j, :]
 
-    df = pd.DataFrame(data)
-    filepath = output_path / f'{current}_mueller_matrix.csv'
-    df.to_csv(filepath, index=False)
+        if include_m00:
+            data['M00_transmission'] = result.m00
 
-    st.success(f"Exported to: `{filepath}`")
+        df = pd.DataFrame(data)
+        filepath = output_path / f'{name}_mueller_matrix.csv'
+        df.to_csv(filepath, index=False)
+
+    st.success(f"Exported {len(selected_samples)} sample(s) to: `{output_path}`")
 
 
 # ============================================================================
@@ -589,7 +617,7 @@ def main():
     st.markdown("---")
     st.subheader("Export")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     export_disabled = not has_processed
 
@@ -602,23 +630,19 @@ def main():
             save_results()
 
     with col2:
-        st.button(
-            "Export Plot (.png)",
-            use_container_width=True,
-            disabled=True,  # TODO: Implement with kaleido
-            help="Coming soon"
-        )
-
-    with col3:
         if st.button(
             "Export Data (.csv)",
             use_container_width=True,
             disabled=export_disabled
         ):
-            export_csv()
+            st.session_state['_show_csv_export'] = True
 
     if export_disabled:
         st.caption("Process samples to enable export options")
+
+    # Show CSV export dialog if requested
+    if st.session_state.get('_show_csv_export', False) and has_processed:
+        export_csv()
 
 
 # ============================================================================

@@ -129,7 +129,7 @@ def discover_and_display_files():
     cfg = build_config_from_session()
 
     if cfg.paths.data_dir is None:
-        st.error("Please set data directory in Configuration page first")
+        st.error("Data directory not set. Go to **Configuration** page and enter the path to your calibration data folder.")
         return None
 
     try:
@@ -145,13 +145,13 @@ def discover_and_display_files():
         return cal_files
 
     except FileNotFoundError as e:
-        st.error(f"File discovery failed: {e}")
+        st.error(f"File discovery failed: {e}. Check that the data directory contains the required calibration files (DARK, ST, P0, P45, FP1).")
         return None
     except ValueError as e:
-        st.error(f"Ambiguous files found: {e}")
+        st.error(f"Multiple matching files found: {e}. Ensure each calibration type has only one .bin file in the directory.")
         return None
     except Exception as e:
-        st.error(f"Unexpected error: {e}")
+        st.error(f"Unexpected error during file discovery: {e}")
         return None
 
 
@@ -180,7 +180,7 @@ def display_discovered_files(cal_files):
             st.success("Found all calibration files. FP2 not included (optional).")
     else:
         missing_str = ", ".join(missing_required)
-        st.error(f"Found {required_found}/{required_total} calibration files. Missing: {missing_str}")
+        st.error(f"Missing calibration files: **{missing_str}**. Found {required_found}/{required_total} required files. Check that all calibration .bin files are in the data directory.")
 
 
 def run_calibration_workflow():
@@ -219,7 +219,7 @@ def run_calibration_workflow():
 
     except Exception as e:
         progress_container.empty()
-        st.error(f"Calibration failed: {e}")
+        st.error(f"Calibration failed: {e}. Check that calibration files are valid and not corrupted.")
 
 
 def display_quality_summary(diagnostics, result):
@@ -282,7 +282,7 @@ def save_current_calibration():
     cfg = get_config()
 
     if result is None or diagnostics is None:
-        st.error("No calibration available to save")
+        st.error("No calibration data available. Run calibration first before saving.")
         return
 
     if cfg is None:
@@ -301,7 +301,7 @@ def save_current_calibration():
         st.success(f"Calibration saved to: `{filepath}`")
 
     except Exception as e:
-        st.error(f"Failed to save calibration: {e}")
+        st.error(f"Failed to save calibration: {e}. Check that the output directory is writable.")
 
 
 def load_calibration_from_file(filepath: str):
@@ -326,9 +326,9 @@ def load_calibration_from_file(filepath: str):
         st.rerun()
 
     except FileNotFoundError:
-        st.error("Calibration file not found")
+        st.error(f"Calibration file not found: `{filepath}`. Check that the file path is correct.")
     except Exception as e:
-        st.error(f"Failed to load calibration: {e}")
+        st.error(f"Failed to load calibration: {e}. The file may be corrupted or incompatible.")
 
 
 # ============================================================================

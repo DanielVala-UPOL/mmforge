@@ -268,6 +268,7 @@ def display_decomposed_matrices():
                         title=f"{matrix_name} Comparison"
                     )
                     st.plotly_chart(fig, use_container_width=True)
+
                 elif len(selected_for_compare) == 1:
                     st.info("Select at least 2 samples to compare")
                 else:
@@ -378,10 +379,12 @@ def display_parameter_plots():
             samples_dict = {name: lc_results[name].D for name in selected}
             fig = create_diattenuation_comparison_plot(samples_dict, wavelengths)
             st.plotly_chart(fig, use_container_width=True)
+
         elif not show_comparison:
             name = sample_names[0]
             fig = create_diattenuation_plot(lc_results[name].D, wavelengths, sample_name=name)
             st.plotly_chart(fig, use_container_width=True)
+
         else:
             st.info("Select at least one sample above to display")
 
@@ -390,10 +393,12 @@ def display_parameter_plots():
             samples_dict = {name: lc_results[name].DI for name in selected}
             fig = create_di_comparison_plot(samples_dict, wavelengths)
             st.plotly_chart(fig, use_container_width=True)
+
         elif not show_comparison:
             name = sample_names[0]
             fig = create_di_plot(lc_results[name].DI, wavelengths, sample_name=name)
             st.plotly_chart(fig, use_container_width=True)
+
         else:
             st.info("Select at least one sample above to display")
 
@@ -410,6 +415,7 @@ def display_parameter_plots():
             samples_dict = {name: lc_results[name] for name in selected}
             fig = create_retardance_comparison_plot(samples_dict, wavelengths, unit=unit)
             st.plotly_chart(fig, use_container_width=True)
+
         elif not show_comparison:
             name = sample_names[0]
             result = lc_results[name]
@@ -421,6 +427,7 @@ def display_parameter_plots():
                 sample_name=name
             )
             st.plotly_chart(fig, use_container_width=True)
+
         else:
             st.info("Select at least one sample above to display")
 
@@ -437,6 +444,7 @@ def display_parameter_plots():
             samples_dict = {name: lc_results[name] for name in selected}
             fig = create_fast_axis_comparison_plot(samples_dict, wavelengths, unit=axis_unit)
             st.plotly_chart(fig, use_container_width=True)
+
         elif not show_comparison:
             name = sample_names[0]
             result = lc_results[name]
@@ -445,6 +453,7 @@ def display_parameter_plots():
                 unit=axis_unit, sample_name=name
             )
             st.plotly_chart(fig, use_container_width=True)
+
         else:
             st.info("Select at least one sample above to display")
 
@@ -488,12 +497,50 @@ def save_decomposition():
 
 
 def export_decomposition_csv():
-    """Export decomposition parameters to CSV."""
+    """Export decomposition results to CSV with selection dialog."""
     lc_results = get_lu_chipman_results()
     if not lc_results:
-        st.error("No decomposition results to export")
+        st.error("No decomposition results")
         return
 
+    sample_names = list(lc_results.keys())
+
+    with st.expander("CSV Export Options", expanded=True):
+        st.markdown("**Select samples to export:**")
+
+        selected_samples = []
+        cols = st.columns(min(3, len(sample_names)))
+        for idx, name in enumerate(sample_names):
+            with cols[idx % len(cols)]:
+                if st.checkbox(name, value=True, key=f"decomp_csv_{name}"):
+                    selected_samples.append(name)
+
+        st.markdown("**Select parameters to include:**")
+        col1, col2 = st.columns(2)
+        with col1:
+            inc_D = st.checkbox("Diattenuation (D)", value=True, key="csv_D")
+            inc_DI = st.checkbox("Depolarization Index (DI)", value=True, key="csv_DI")
+            inc_R = st.checkbox("Retardance (R)", value=True, key="csv_R")
+        with col2:
+            inc_nu = st.checkbox("Fast Axis (ν)", value=True, key="csv_nu")
+            inc_chi = st.checkbox("Ellipticity (χ)", value=True, key="csv_chi")
+
+        st.markdown("**Select matrices to include:**")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            inc_MD = st.checkbox("M_D (Diattenuator)", value=False, key="csv_MD")
+        with col2:
+            inc_MDelta = st.checkbox("M_Δ (Depolarizer)", value=False, key="csv_MDelta")
+        with col3:
+            inc_MR = st.checkbox("M_R (Retarder)", value=False, key="csv_MR")
+
+        if st.button("Export Selected", type="primary", disabled=len(selected_samples) == 0, key="decomp_export_btn"):
+            _do_decomp_csv_export(selected_samples, inc_D, inc_DI, inc_R, inc_nu, inc_chi, inc_MD, inc_MDelta, inc_MR)
+
+
+def _do_decomp_csv_export(selected_samples, inc_D, inc_DI, inc_R, inc_nu, inc_chi, inc_MD, inc_MDelta, inc_MR):
+    """Actually perform the decomposition CSV export."""
+    lc_results = get_lu_chipman_results()
     cal_result = get_calibration_result()
 
     output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'decomposition_output'))
@@ -502,25 +549,47 @@ def export_decomposition_csv():
 
     import pandas as pd
 
-    for name, result in lc_results.items():
+    for name in selected_samples:
+        result = lc_results[name]
         wavelengths = cal_result.wavelengths if cal_result else np.arange(len(result.D))
 
-        data = {
-            'wavelength_nm': wavelengths,
-            'diattenuation_D': result.D,
-            'retardance_deg': result.R_deg,
-            'retardance_rad': result.R_rad,
-            'retardance_waves': result.R_waves,
-            'depolarization_index_DI': result.DI,
-            'fast_axis_nu_deg': result.psi_deg,  # Display as nu (ν)
-            'ellipticity_chi_deg': result.chi_deg,
-        }
+        # Parameters CSV
+        param_data = {'wavelength_nm': wavelengths}
+        if inc_D:
+            param_data['diattenuation_D'] = result.D
+        if inc_DI:
+            param_data['depolarization_index_DI'] = result.DI
+        if inc_R:
+            param_data['retardance_deg'] = result.R_deg
+            param_data['retardance_rad'] = result.R_rad
+            param_data['retardance_waves'] = result.R_waves
+        if inc_nu:
+            param_data['fast_axis_nu_deg'] = result.psi_deg
+        if inc_chi:
+            param_data['ellipticity_chi_deg'] = result.chi_deg
 
-        df = pd.DataFrame(data)
-        filepath = output_path / f'{name}_lu_chipman_parameters.csv'
-        df.to_csv(filepath, index=False)
+        if len(param_data) > 1:  # More than just wavelength
+            df = pd.DataFrame(param_data)
+            filepath = output_path / f'{name}_parameters.csv'
+            df.to_csv(filepath, index=False)
 
-    st.success(f"Exported {len(lc_results)} sample(s) to: `{output_path}`")
+        # Matrix CSVs (one file per matrix if selected)
+        for matrix_name, inc_flag, matrix_attr in [
+            ('M_D', inc_MD, 'M_D'),
+            ('M_Delta', inc_MDelta, 'M_Delta'),
+            ('M_R', inc_MR, 'M_R'),
+        ]:
+            if inc_flag:
+                M = getattr(result, matrix_attr)
+                mat_data = {'wavelength_nm': wavelengths}
+                for i in range(4):
+                    for j in range(4):
+                        mat_data[f'm{i+1}{j+1}'] = M[i, j, :]
+                df = pd.DataFrame(mat_data)
+                filepath = output_path / f'{name}_{matrix_name}.csv'
+                df.to_csv(filepath, index=False)
+
+    st.success(f"Exported {len(selected_samples)} sample(s) to: `{output_path}`")
 
 
 def display_summary_table():
@@ -694,7 +763,7 @@ def main():
     st.markdown("---")
     st.subheader("Export")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     export_disabled = not has_results
 
@@ -707,23 +776,19 @@ def main():
             save_decomposition()
 
     with col2:
-        st.button(
-            "Export Plot (.png)",
-            use_container_width=True,
-            disabled=True,  # TODO: Implement with kaleido
-            help="Coming soon"
-        )
-
-    with col3:
         if st.button(
             "Export Data (.csv)",
             use_container_width=True,
             disabled=export_disabled
         ):
-            export_decomposition_csv()
+            st.session_state['_show_decomp_csv_export'] = True
 
     if export_disabled:
         st.caption("Run decomposition to enable export options")
+
+    # Show CSV export dialog if requested
+    if st.session_state.get('_show_decomp_csv_export', False) and has_results:
+        export_decomposition_csv()
 
 
 # ============================================================================

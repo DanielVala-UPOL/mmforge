@@ -21,7 +21,7 @@
 | Phase 4.3 | COMPLETED | Minor UI/plot fixes |
 | Phase 4.4 | COMPLETED | Final quality display fixes |
 | Phase 5 | COMPLETED | Lu-Chipman decomposition page |
-| Phase 6 | NOT STARTED | Interactive features & polish |
+| Phase 6 | COMPLETED | Polish & enhancements |
 | Phase 7 | NOT STARTED | Testing, documentation & deployment |
 
 ---
@@ -497,23 +497,98 @@ UI tuning, new figures, and summary table:
 
 ---
 
-## WHAT'S NEXT: Phase 6 - Interactive Features & Polish
+## Phase 6 - Polish & Enhancements
 
-### Phase 6 Tasks:
+### Phase 6.1 - Revisions Complete ✓
 
-1. **Interactive Features**
-   - [ ] Cross-plot wavelength highlighting
-   - [ ] Zoom synchronization across subplots
-   - [ ] Download individual plots as PNG
+Based on user feedback, the following changes were made:
 
-2. **UI Polish**
-   - [ ] Loading states/spinners for all operations
-   - [ ] Better error messages with suggestions
-   - [ ] Keyboard shortcuts
+#### 1. PNG Export Buttons - REMOVED ✓
+- [x] Removed all "Download Plot (.png)" buttons from Processing and Parameters pages
+- [x] Plotly's native download icon in plot toolbar is sufficient
+- [x] Removed unused `export_figure_png` imports
 
-3. **Performance**
-   - [ ] Lazy loading for large datasets
-   - [ ] Caching for expensive computations
+#### 2. Streamlit Caching - REMOVED ✓
+- [x] Removed `@st.cache_data` decorators from all plot functions (caused slowdown)
+- [x] Removed `import streamlit as st` from plots_plotly.py
+
+#### 3. Reset Session Button - MOVED TO SIDEBAR ✓
+- [x] Moved from Home page to sidebar under new "Session" section
+- [x] Appears below Status section in sidebar
+- [x] Confirmation dialog with warning message preserved
+- [x] Clears all session state keys on confirm
+
+#### 4. CSV Export Dialogs - ADDED ✓
+- [x] **Processing page**: "Export Data (.csv)" now shows selection dialog
+  - Select which samples to export
+  - Select data to include (Normalized Mueller Matrix, M00 Transmission)
+  - "Export Selected" button performs export
+- [x] **Parameters page**: "Export Data (.csv)" now shows selection dialog
+  - Select which samples to export
+  - Select parameters to include (D, DI, R, ν, χ)
+  - Select matrices to include (M_D, M_Δ, M_R)
+  - "Export Selected" button performs export
+
+#### 5. Batch Export Helper - KEPT ✓
+- [x] `create_export_zip()` function kept in `utils/export.py` for future use
+
+**Files modified (Phase 6.1 Revisions):**
+- `streamlit_app/pages/3_Processing.py` - Removed PNG buttons, added CSV export dialog
+- `streamlit_app/pages/4_Parameters.py` - Removed PNG buttons, added CSV export dialog
+- `streamlit_app/app.py` - Removed Reset Session button
+- `streamlit_app/components/sidebar.py` - Added Session section with Reset button
+- `streamlit_app/components/plots_plotly.py` - Removed caching decorators
+
+---
+
+### Phase 6.2: Polish & Enhancements (Priority 2 & 3) - COMPLETED
+
+#### 1. Improved Error Messages ✓
+- [x] Updated 3 error messages in `file_browser.py` with path context
+- [x] Updated 10 error messages in `2_Calibration.py` with actionable suggestions
+- [x] Updated 8 error messages in `3_Processing.py` with guidance
+- [x] Error messages now include:
+  - Path being accessed (when relevant)
+  - Actionable suggestion (what to check/do)
+  - Reference to correct page (when applicable)
+
+#### 2. Configuration Validation Warnings ✓
+- [x] **Wavelength range warnings** (1_Configuration.py):
+  - Warning if min < 350 nm (most polarimeters operate 400-800 nm)
+  - Warning if max > 1200 nm (verify detector supports range)
+- [x] **Angular positions info** (1_Configuration.py):
+  - Info note if n_positions not in [36, 72, 96, 144] (common values)
+
+#### 3. Comparison Selections Persistence ✓
+- [x] **Already working** - Streamlit automatically persists widget states via keys
+  - Processing page uses `st.session_state[f"compare_cb_{name}"]`
+  - Parameters page uses similar pattern
+  - No changes needed
+
+**Files modified (Phase 6.2):**
+- `streamlit_app/components/file_browser.py` - Improved error messages
+- `streamlit_app/pages/1_Configuration.py` - Added validation warnings
+- `streamlit_app/pages/2_Calibration.py` - Improved error messages
+- `streamlit_app/pages/3_Processing.py` - Improved error messages
+
+---
+
+## WHAT'S NEXT: Phase 7 - Testing & Documentation
+
+#### Remaining Optional Items (Low Priority)
+
+- UI Micro-Improvements (placeholder text, help tooltips)
+- Cross-session state persistence (cookies/localStorage)
+
+#### Removed from Original Plan (with reasoning)
+
+- ~~Cross-plot wavelength highlighting~~ → Already have Plotly unified hover mode
+- ~~Zoom synchronization~~ → Already have `shared_xaxes=True` in subplots
+- ~~Keyboard shortcuts~~ → Complex to implement in Streamlit, not essential
+- ~~Lazy loading~~ → Not needed for typical dataset sizes (hundreds of wavelengths)
+- ~~Loading spinners~~ → Already have progress bars for all long operations
+- ~~PNG Export Buttons~~ → Plotly native download sufficient
+- ~~Caching~~ → Caused slowdown instead of improvement
 
 ---
 

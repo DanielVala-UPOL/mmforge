@@ -66,7 +66,7 @@ def directory_selector(
             st.success("Valid directory")
             return new_path
         else:
-            st.error("Directory not found")
+            st.error(f"Directory not found: `{new_path}`. Check that the path exists and you have read permissions.")
             return None
 
     return None
@@ -184,12 +184,12 @@ def file_selector(
                     st.success(f"Valid file: {p.name}")
                     return new_file
                 else:
-                    st.error(f"Invalid file type. Expected: {', '.join(file_types)}")
+                    st.error(f"Invalid file type: `{p.suffix}`. Expected one of: {', '.join(file_types)}")
                     return None
             st.success(f"Valid file: {p.name}")
             return new_file
         else:
-            st.error("File not found")
+            st.error(f"File not found: `{new_file}`. Check that the file path is correct.")
             return None
 
     return None

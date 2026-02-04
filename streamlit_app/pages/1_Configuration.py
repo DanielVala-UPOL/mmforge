@@ -121,6 +121,12 @@ def main():
             st.session_state['wl_min'] = wl_min
             st.session_state['wl_max'] = wl_max
 
+            # Validation warnings (non-blocking)
+            if wl_min < 350:
+                st.warning("Wavelength minimum is below 350 nm. Most polarimeters operate in the visible range (400-800 nm).")
+            if wl_max > 1200:
+                st.warning("Wavelength maximum exceeds 1200 nm. Verify your detector supports this range.")
+
             # Hardcode reference wavelength internally (633nm)
             st.session_state['wl_ref'] = 633.0
 
@@ -137,6 +143,12 @@ def main():
                 key="n_positions",
                 help="96 positions provides good accuracy while maintaining reasonable measurement time."
             )
+
+            # Validation info for extreme values
+            if n_positions < 64:
+                st.info("Consider using more steps to avoid calibration instability.")
+            elif n_positions > 304:
+                st.info("Adding more than 304 steps will not increase precision considerably.")
 
 
 # ============================================================================

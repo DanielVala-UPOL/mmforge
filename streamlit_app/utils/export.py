@@ -186,3 +186,46 @@ def export_calibration_summary_csv(
     csv_string = header + df.to_csv(index=False)
 
     return csv_string
+
+
+# ============================================================================
+# BATCH EXPORT
+# ============================================================================
+
+def create_export_zip(files_dict: dict) -> bytes:
+    """
+    Create a zip file from a dictionary of filename -> content pairs.
+
+    Parameters
+    ----------
+    files_dict : dict
+        Dictionary mapping filenames to content (str for CSV, bytes for PNG).
+
+    Returns
+    -------
+    zip_bytes : bytes
+        Zip file as bytes for download.
+
+    Example
+    -------
+    files = {
+        "sample1_mueller.csv": csv_string,
+        "sample1_plot.png": png_bytes,
+    }
+    zip_bytes = create_export_zip(files)
+    st.download_button("Download All", data=zip_bytes, file_name="export.zip")
+    """
+    import io
+    import zipfile
+
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for filename, content in files_dict.items():
+            if isinstance(content, str):
+                zf.writestr(filename, content.encode('utf-8'))
+            else:
+                zf.writestr(filename, content)
+
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue()
