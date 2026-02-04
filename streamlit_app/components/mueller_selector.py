@@ -36,12 +36,34 @@ def mueller_element_selector(
     selected : list of (i, j) tuples
         Selected element indices (0-indexed).
     """
-    st.markdown("**Select Mueller Elements**")
     st.caption("Select elements to overlay on a single plot")
 
     # Initialize selection in session state if needed
     if f"{key}_selection" not in st.session_state:
         st.session_state[f"{key}_selection"] = default_selection or []
+
+    # Quick select buttons FIRST (before checkboxes are instantiated)
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Clear All", key=f"{key}_clear", use_container_width=True):
+            st.session_state[f"{key}_selection"] = []
+            # Update checkbox widget keys before rerun
+            for i in range(4):
+                for j in range(4):
+                    st.session_state[f"{key}_{i}_{j}"] = False
+            st.rerun()
+
+    with col2:
+        if st.button("Select All", key=f"{key}_all", use_container_width=True):
+            st.session_state[f"{key}_selection"] = [(i, j) for i in range(4) for j in range(4)]
+            # Update checkbox widget keys before rerun
+            for i in range(4):
+                for j in range(4):
+                    st.session_state[f"{key}_{i}_{j}"] = True
+            st.rerun()
+
+    st.markdown("---")
 
     selected = []
 
@@ -58,25 +80,6 @@ def mueller_element_selector(
 
     # Update session state
     st.session_state[f"{key}_selection"] = selected
-
-    # Quick select buttons
-    st.markdown("---")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        if st.button("Diagonal", key=f"{key}_diagonal"):
-            st.session_state[f"{key}_selection"] = [(i, i) for i in range(4)]
-            st.rerun()
-
-    with col2:
-        if st.button("Clear All", key=f"{key}_clear"):
-            st.session_state[f"{key}_selection"] = []
-            st.rerun()
-
-    with col3:
-        if st.button("Select All", key=f"{key}_all"):
-            st.session_state[f"{key}_selection"] = [(i, j) for i in range(4) for j in range(4)]
-            st.rerun()
 
     return selected
 

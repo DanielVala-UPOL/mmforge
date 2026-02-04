@@ -1,0 +1,6 @@
+[client]
+toolbarMode = "minimal"
+
+[theme]
+# Lock to light theme
+base = "light"

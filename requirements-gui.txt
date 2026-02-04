@@ -8,8 +8,8 @@ streamlit>=1.30.0
 # Interactive plotting
 plotly>=5.18.0
 
-# File browser component
-streamlit-file-browser>=0.2.0
+# Modern UI components
+streamlit-antd-components>=0.3.0
 
 # Data handling
 pandas>=2.0.0

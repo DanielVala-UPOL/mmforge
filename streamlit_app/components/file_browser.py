@@ -1,31 +1,25 @@
 """
-File Browser Component - Drag-and-drop and directory selection.
+File Browser Component - Simple path input with validation.
 
-Provides a unified interface for:
-- Drag-and-drop file/folder upload (visual placeholder)
-- Manual path text input
-- Path validation
+Provides editable text inputs for folder and file path selection.
+Users can type or paste paths directly.
 
 Author: Daniel Vala
 """
 
 import streamlit as st
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
-
-# ============================================================================
-# DIRECTORY SELECTOR
-# ============================================================================
 
 def directory_selector(
     label: str,
     key: str,
     default_path: str = "",
     help_text: str = ""
-) -> Optional[Path]:
+) -> Optional[str]:
     """
-    Create a directory selector with drag-drop zone and text input.
+    Create a directory selector with editable text input.
 
     Parameters
     ----------
@@ -34,72 +28,45 @@ def directory_selector(
     key : str
         Unique key for Streamlit session state.
     default_path : str
-        Default path to show.
+        Default path to show (only used if no value exists).
     help_text : str
-        Help text to display.
+        Help text displayed below input.
 
     Returns
     -------
-    path : Path or None
+    path : str or None
         Selected directory path, or None if invalid/empty.
     """
     st.markdown(f"**{label}**")
 
-    if help_text:
-        st.caption(help_text)
+    # Session state key for this directory
+    state_key = f'{key}_path'
 
-    # -------------------------------------------------
-    # Drag-and-drop zone (visual placeholder)
-    # -------------------------------------------------
-    # Note: Streamlit's native file_uploader doesn't support
-    # folder selection. This is a visual placeholder that will be
-    # enhanced with streamlit-file-browser in later phases.
+    # Get current value - use existing value if present, otherwise default
+    current_value = st.session_state.get(state_key, default_path)
 
-    st.markdown(
-        """
-        <div style="
-            border: 2px dashed #ccc;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            background-color: #f9f9f9;
-            margin-bottom: 10px;
-        ">
-            <p style="color: #666; margin: 0;">
-                📁 Drag and drop folder here<br>
-                <small>or enter path below</small>
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # -------------------------------------------------
-    # Text input for path
-    # -------------------------------------------------
-    path_input = st.text_input(
+    # Editable text input
+    # Using value= instead of relying on key= to avoid Streamlit widget state issues
+    new_path = st.text_input(
         "Path",
-        value=default_path,
-        key=f"{key}_path_input",
-        label_visibility="collapsed",
-        placeholder="Enter directory path..."
+        value=current_value,
+        key=f"{key}_text_input",  # Unique widget key
+        placeholder="/path/to/your/data/folder",
+        help=help_text if help_text else "Enter or paste the full path to the folder",
+        label_visibility="collapsed"
     )
 
-    # -------------------------------------------------
-    # Validate path
-    # -------------------------------------------------
-    if path_input:
-        p = Path(path_input)
+    # Always update session state with current value
+    st.session_state[state_key] = new_path
+
+    # Validation
+    if new_path and new_path.strip():
+        p = Path(new_path)
         if p.exists() and p.is_dir():
-            # Count .bin files for quick validation
-            bin_files = list(p.glob("*.bin"))
-            st.success(f"✓ Valid directory: {len(bin_files)} .bin files found")
-            return p
-        elif p.exists():
-            st.error("✗ Path exists but is not a directory")
-            return None
+            st.success("Valid directory")
+            return new_path
         else:
-            st.error("✗ Directory not found")
+            st.error("Directory not found")
             return None
 
     return None
@@ -109,9 +76,9 @@ def directory_selector_compact(
     label: str,
     key: str,
     default_path: str = "",
-) -> Optional[Path]:
+) -> Optional[str]:
     """
-    Create a compact directory selector (text input only, no drag-drop).
+    Create a compact directory selector (for output directories).
 
     Parameters
     ----------
@@ -120,46 +87,56 @@ def directory_selector_compact(
     key : str
         Unique key for Streamlit session state.
     default_path : str
-        Default path to show.
+        Default path to show (only used if no value exists).
 
     Returns
     -------
-    path : Path or None
-        Selected directory path, or None if invalid/empty.
+    path : str or None
+        Selected directory path, or None if empty.
     """
-    path_input = st.text_input(
-        label,
-        value=default_path,
-        key=f"{key}_path_input",
-        placeholder="Enter directory path..."
+    st.markdown(f"**{label}**")
+
+    # Session state key for this directory
+    state_key = f'{key}_path'
+
+    # Get current value - use existing value if present, otherwise default
+    current_value = st.session_state.get(state_key, default_path)
+
+    # Editable text input
+    new_path = st.text_input(
+        "Path",
+        value=current_value,
+        key=f"{key}_text_input",  # Unique widget key
+        placeholder="/path/to/output/folder",
+        help="Enter or paste the full path to the folder",
+        label_visibility="collapsed"
     )
 
-    if path_input:
-        p = Path(path_input)
+    # Always update session state with current value
+    st.session_state[state_key] = new_path
+
+    # Validation
+    if new_path and new_path.strip():
+        p = Path(new_path)
         if p.exists() and p.is_dir():
-            return p
-        elif p.exists():
-            st.error("Path is not a directory")
-            return None
+            st.success("Valid directory")
+            return new_path
         else:
-            st.error("Directory not found")
-            return None
+            # For output directory, allow non-existing paths (will be created)
+            st.info("Directory will be created if it doesn't exist")
+            return new_path
 
     return None
 
 
-# ============================================================================
-# FILE SELECTOR (for loading single files like calibration.npz)
-# ============================================================================
-
 def file_selector(
     label: str,
     key: str,
-    file_types: list = None,
+    file_types: List[str] = None,
     default_path: str = ""
-) -> Optional[Path]:
+) -> Optional[str]:
     """
-    Create a file selector for single file selection.
+    Create a file selector with editable text input.
 
     Parameters
     ----------
@@ -168,43 +145,51 @@ def file_selector(
     key : str
         Unique key for session state.
     file_types : list
-        List of accepted file extensions (e.g., ['.npz', '.npy']).
+        List of accepted file extensions (e.g., ['.npz']).
     default_path : str
-        Default path to show.
+        Default path to show (only used if no value exists).
 
     Returns
     -------
-    path : Path or None
+    path : str or None
         Selected file path, or None if invalid/empty.
     """
     st.markdown(f"**{label}**")
 
-    path_input = st.text_input(
+    # Session state key for this file
+    state_key = f'{key}_file'
+
+    # Get current value - use existing value if present, otherwise default
+    current_value = st.session_state.get(state_key, default_path)
+
+    # Editable text input
+    new_file = st.text_input(
         "File path",
-        value=default_path,
-        key=f"{key}_file_input",
-        label_visibility="collapsed",
-        placeholder="Enter file path..."
+        value=current_value,
+        key=f"{key}_text_input",  # Unique widget key
+        placeholder="/path/to/file.npz",
+        help=f"Enter or paste the full path to the file{' (' + ', '.join(file_types) + ')' if file_types else ''}",
+        label_visibility="collapsed"
     )
 
-    if path_input:
-        p = Path(path_input)
+    # Always update session state with current value
+    st.session_state[state_key] = new_file
+
+    # Validation
+    if new_file and new_file.strip():
+        p = Path(new_file)
         if p.exists() and p.is_file():
             if file_types:
-                if p.suffix.lower() in file_types:
-                    st.success(f"✓ Valid file: {p.name}")
-                    return p
+                if p.suffix.lower() in [ft.lower() for ft in file_types]:
+                    st.success(f"Valid file: {p.name}")
+                    return new_file
                 else:
-                    st.error(f"✗ Invalid file type. Expected: {', '.join(file_types)}")
+                    st.error(f"Invalid file type. Expected: {', '.join(file_types)}")
                     return None
-            else:
-                st.success(f"✓ Valid file: {p.name}")
-                return p
-        elif p.exists():
-            st.error("✗ Path is not a file")
-            return None
+            st.success(f"Valid file: {p.name}")
+            return new_file
         else:
-            st.error("✗ File not found")
+            st.error("File not found")
             return None
 
     return None

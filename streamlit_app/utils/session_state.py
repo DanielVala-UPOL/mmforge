@@ -27,6 +27,10 @@ SESSION_KEYS = {
     'lu_chipman_results': {},          # Dict[sample_name, LuChipmanResult]
     'current_sample': None,            # Currently selected sample name
     'selected_elements': [],           # List of (i,j) tuples for MM elements
+    # Path settings (persisted across pages)
+    'data_dir_path': '',               # Data directory path
+    'output_dir_path': '',             # Output directory path
+    'sample_dir_path': '',             # Sample directory path
 }
 
 
