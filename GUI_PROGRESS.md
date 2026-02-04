@@ -20,7 +20,7 @@
 | Phase 4.2 | COMPLETED | Minor plot styling fixes |
 | Phase 4.3 | COMPLETED | Minor UI/plot fixes |
 | Phase 4.4 | COMPLETED | Final quality display fixes |
-| Phase 5 | NOT STARTED | Lu-Chipman decomposition page |
+| Phase 5 | COMPLETED | Lu-Chipman decomposition page |
 | Phase 6 | NOT STARTED | Interactive features & polish |
 | Phase 7 | NOT STARTED | Testing, documentation & deployment |
 
@@ -415,26 +415,105 @@ Final quality display and sidebar cleanup:
 
 ---
 
-## WHAT'S NEXT: Phase 5 - Lu-Chipman Decomposition Page
+### Phase 5: Lu-Chipman Decomposition Page - COMPLETED
 
-The Parameters page (`pages/4_Parameters.py`) needs to be connected to the ECM Lu-Chipman decomposition.
+Full Lu-Chipman polar decomposition implementation:
 
-### Phase 5 Tasks:
+#### 1. New Plot Functions (plots_plotly.py)
+- [x] `create_diattenuation_plot()` - Single-sample diattenuation
+- [x] `create_diattenuation_comparison_plot()` - Multi-sample diattenuation overlay
+- [x] `create_di_plot()` - Single-sample depolarization index
+- [x] `create_di_comparison_plot()` - Multi-sample DI overlay
+- [x] `create_retardance_plot()` - Single-sample retardance with unit selector
+- [x] `create_retardance_comparison_plot()` - Multi-sample retardance overlay
 
-1. **Lu-Chipman Decomposition**
-   - [ ] Connect to `lu_chipman_decomposition()` from `ecm.decomposition`
-   - [ ] Process selected samples
-   - [ ] Store results in `st.session_state['lu_chipman_results']`
+#### 2. Retardance Unit Selector
+- [x] Y-axis unit toggle: degrees (default), radians, waves
+- [x] QWP/HWP reference lines adjust based on unit
+- [x] Works for both single sample and comparison views
 
-2. **Parameter Visualization**
-   - [ ] Depolarization index plot
-   - [ ] Total retardance plot
-   - [ ] Diattenuation plot
-   - [ ] Linear/Circular birefringence plots
+#### 3. Parameters Page Rewrite (4_Parameters.py)
+- [x] Sample selection with Select All / Clear All buttons
+- [x] Run Decomposition button with progress bar
+- [x] Decomposed Matrices section with tabs (M_D, M_R, M_Δ)
+  - View modes: 4x4 Grid, Selected Elements, Compare Samples
+  - Element selector for Selected Elements mode
+- [x] Decomposition Parameters section with tabs (D, DI, R)
+  - Retardance tab has unit selector
+  - Multi-sample overlay with legend toggle
 
-3. **Export Functionality**
-   - [ ] Save decomposition results as .npz
-   - [ ] Export parameter data as CSV
+#### 4. Export Functionality
+- [x] Save Decomposition (.npz) - all matrices and parameters
+- [x] Export Data (.csv) - one file per sample with all parameters
+- [x] Export Plot (.png) - placeholder (TODO: implement with kaleido)
+
+#### 5. ECM Integration
+- [x] Uses `lu_chipman_decomposition()` from `ecm.postprocessing`
+- [x] Stores results in `st.session_state['lu_chipman_results']`
+- [x] ECM `psi_deg` displayed as `ν` (nu) in GUI
+
+**Files modified:**
+- `streamlit_app/components/plots_plotly.py` - Added 6 new plot functions
+- `streamlit_app/pages/4_Parameters.py` - Complete rewrite with full functionality
+
+---
+
+### Phase 5.1: UI Fixes & Enhancements - COMPLETED
+
+UI tuning, new figures, and summary table:
+
+#### 1. Processing Page Cleanup
+- [x] Removed redundant "Wavelengths", "Range", "Mean Quality" display fields
+- [x] Removed unused `get_calibration_info` import
+
+#### 2. Parameters Page - Matrix Tab Reordering
+- [x] Reordered tabs: Diattenuator → Depolarizer → Retarder (was: Diattenuator → Retarder → Depolarizer)
+- [x] Added HTML subscripts to plot titles (M<sub>D</sub>, M<sub>Δ</sub>, M<sub>R</sub>)
+
+#### 3. Unified Sample Selection for Decomposition Parameters
+- [x] Moved sample selection above parameter tabs (shared across all)
+- [x] Selection now persists when switching between D, DI, R, ν/χ tabs
+- [x] Removed duplicate Select All/Clear All buttons from each tab
+
+#### 4. New Figure: Fast Axis (ν) & Ellipticity (χ)
+- [x] Added `create_fast_axis_plot()` - single sample, 2-subplot vertical figure
+- [x] Added `create_fast_axis_comparison_plot()` - multi-sample overlay
+- [x] Unit selector: degrees (default) / radians (no waves for angles)
+- [x] Reference lines at 0 (linear retarder)
+- [x] New "Fast Axis (ν, χ)" tab in Decomposition Parameters
+
+#### 5. Summary Table Section
+- [x] New "Summary Table" expander between Decomposition Parameters and Export
+- [x] Expander open by default (expanded=True)
+- [x] Table: columns=samples, rows=D, DI, R, ν, χ
+- [x] View mode toggle: "Mean ± Std" or "Single wavelength"
+- [x] Wavelength slider shows actual wavelength values (not indices)
+- [x] Angle unit selector: degrees/radians
+
+**Files modified:**
+- `streamlit_app/pages/3_Processing.py` - Removed redundant metrics
+- `streamlit_app/pages/4_Parameters.py` - Matrix reorder, unified selection, new tab, summary table
+- `streamlit_app/components/plots_plotly.py` - Added 2 new Fast Axis plot functions
+
+---
+
+## WHAT'S NEXT: Phase 6 - Interactive Features & Polish
+
+### Phase 6 Tasks:
+
+1. **Interactive Features**
+   - [ ] Cross-plot wavelength highlighting
+   - [ ] Zoom synchronization across subplots
+   - [ ] Download individual plots as PNG
+
+2. **UI Polish**
+   - [ ] Loading states/spinners for all operations
+   - [ ] Better error messages with suggestions
+   - [ ] Keyboard shortcuts
+
+3. **Performance**
+   - [ ] Lazy loading for large datasets
+   - [ ] Caching for expensive computations
 
 ---
 

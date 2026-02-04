@@ -31,7 +31,6 @@ from components.mueller_selector import mueller_element_selector
 from utils.session_state import (
     initialize_session_state,
     is_calibrated,
-    get_calibration_info,
     get_calibration_result,
     get_calibration_diagnostics,
     get_processed_samples,
@@ -495,21 +494,6 @@ def main():
         st.stop()
 
     st.success("Calibrated - Ready to process samples")
-
-    cal_info = get_calibration_info()
-    if cal_info:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Wavelengths", cal_info.get('n_wavelengths', 'N/A'))
-        with col2:
-            wl_min = cal_info.get('wl_min')
-            wl_max = cal_info.get('wl_max')
-            if wl_min and wl_max:
-                st.metric("Range", f"{wl_min:.0f} - {wl_max:.0f} nm")
-        with col3:
-            mean_ratio = cal_info.get('mean_ratio')
-            if mean_ratio:
-                st.metric("Mean Quality", f"{mean_ratio:.2e}")
 
     st.markdown("---")
 

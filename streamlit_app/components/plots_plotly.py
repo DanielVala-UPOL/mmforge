@@ -800,23 +800,647 @@ def create_depolarization_plot(
     return fig
 
 
+def create_diattenuation_plot(
+    D: ndarray,
+    wavelengths: ndarray,
+    sample_name: str = "Sample",
+    title: str = "Diattenuation"
+) -> go.Figure:
+    """
+    Create single-sample diattenuation plot.
+
+    Parameters
+    ----------
+    D : ndarray, shape (n_wavelengths,)
+        Diattenuation values.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    sample_name : str
+        Sample name for legend.
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure.
+    """
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=wavelengths,
+            y=D,
+            mode='lines',
+            name=sample_name,
+            line=dict(color='#1f77b4', width=2),
+            hovertemplate='λ=%{x:.1f} nm<br>D=%{y:.4f}<extra></extra>',
+        )
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Wavelength (nm)",
+        yaxis_title="Diattenuation (D)",
+        yaxis=dict(range=[0, 1]),
+        height=400,
+        hovermode='x unified'
+    )
+
+    apply_common_styling(fig, show_grid=True)
+    return fig
+
+
+def create_diattenuation_comparison_plot(
+    samples_dict: dict,
+    wavelengths: ndarray,
+    title: str = "Diattenuation Comparison"
+) -> go.Figure:
+    """
+    Create multi-sample diattenuation overlay plot.
+
+    Parameters
+    ----------
+    samples_dict : dict
+        Dictionary mapping sample names to D arrays.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure.
+    """
+    fig = go.Figure()
+
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+              '#bcbd22', '#17becf']
+
+    for idx, (name, D) in enumerate(samples_dict.items()):
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths,
+                y=D,
+                mode='lines',
+                name=name,
+                line=dict(color=colors[idx % len(colors)], width=2),
+                hovertemplate=f'{name}<br>λ=%{{x:.1f}} nm<br>D=%{{y:.4f}}<extra></extra>',
+            )
+        )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Wavelength (nm)",
+        yaxis_title="Diattenuation (D)",
+        yaxis=dict(range=[0, 1]),
+        height=400,
+        hovermode='x unified',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    apply_common_styling(fig, show_grid=True)
+    return fig
+
+
+def create_di_plot(
+    DI: ndarray,
+    wavelengths: ndarray,
+    sample_name: str = "Sample",
+    title: str = "Depolarization Index"
+) -> go.Figure:
+    """
+    Create single-sample depolarization index plot.
+
+    Parameters
+    ----------
+    DI : ndarray, shape (n_wavelengths,)
+        Depolarization index values.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    sample_name : str
+        Sample name for legend.
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure.
+    """
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=wavelengths,
+            y=DI,
+            mode='lines',
+            name=sample_name,
+            line=dict(color='#1f77b4', width=2),
+            hovertemplate='λ=%{x:.1f} nm<br>DI=%{y:.4f}<extra></extra>',
+        )
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Wavelength (nm)",
+        yaxis_title="Depolarization Index (DI)",
+        yaxis=dict(range=[0, 1.05]),
+        height=400,
+        hovermode='x unified'
+    )
+
+    apply_common_styling(fig, show_grid=True)
+    return fig
+
+
+def create_di_comparison_plot(
+    samples_dict: dict,
+    wavelengths: ndarray,
+    title: str = "Depolarization Index Comparison"
+) -> go.Figure:
+    """
+    Create multi-sample depolarization index overlay plot.
+
+    Parameters
+    ----------
+    samples_dict : dict
+        Dictionary mapping sample names to DI arrays.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure.
+    """
+    fig = go.Figure()
+
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+              '#bcbd22', '#17becf']
+
+    for idx, (name, DI) in enumerate(samples_dict.items()):
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths,
+                y=DI,
+                mode='lines',
+                name=name,
+                line=dict(color=colors[idx % len(colors)], width=2),
+                hovertemplate=f'{name}<br>λ=%{{x:.1f}} nm<br>DI=%{{y:.4f}}<extra></extra>',
+            )
+        )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Wavelength (nm)",
+        yaxis_title="Depolarization Index (DI)",
+        yaxis=dict(range=[0, 1.05]),
+        height=400,
+        hovermode='x unified',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    apply_common_styling(fig, show_grid=True)
+    return fig
+
+
 def create_retardance_plot(
     R_deg: ndarray,
-    wavelengths: ndarray
+    wavelengths: ndarray,
+    R_rad: ndarray = None,
+    R_waves: ndarray = None,
+    unit: str = "degrees",
+    sample_name: str = "Sample",
+    title: str = "Retardance"
 ) -> go.Figure:
-    """Create retardance plot. Placeholder for Phase 5."""
+    """
+    Create retardance plot with selectable unit.
+
+    Parameters
+    ----------
+    R_deg : ndarray, shape (n_wavelengths,)
+        Retardance in degrees.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    R_rad : ndarray, optional
+        Retardance in radians.
+    R_waves : ndarray, optional
+        Retardance in waves.
+    unit : str
+        Unit to display: "degrees", "radians", or "waves".
+    sample_name : str
+        Sample name for legend.
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure.
+    """
+    import numpy as np
+
+    # Select data and label based on unit
+    if unit == "radians":
+        if R_rad is not None:
+            y_data = R_rad
+        else:
+            y_data = np.deg2rad(R_deg)
+        y_label = "Retardance (rad)"
+        qwp_val = np.pi / 2
+        hwp_val = np.pi
+        qwp_text = "QWP (π/2)"
+        hwp_text = "HWP (π)"
+    elif unit == "waves":
+        if R_waves is not None:
+            y_data = R_waves
+        else:
+            y_data = R_deg / 360.0
+        y_label = "Retardance (waves)"
+        qwp_val = 0.25
+        hwp_val = 0.5
+        qwp_text = "QWP (0.25)"
+        hwp_text = "HWP (0.5)"
+    else:  # degrees (default)
+        y_data = R_deg
+        y_label = "Retardance (°)"
+        qwp_val = 90
+        hwp_val = 180
+        qwp_text = "QWP (90°)"
+        hwp_text = "HWP (180°)"
+
     fig = go.Figure()
+
     fig.add_trace(
-        go.Scatter(x=wavelengths, y=R_deg, mode='lines', name='Retardance')
+        go.Scatter(
+            x=wavelengths,
+            y=y_data,
+            mode='lines',
+            name=sample_name,
+            line=dict(color='#1f77b4', width=2),
+            hovertemplate=f'λ=%{{x:.1f}} nm<br>R=%{{y:.4f}}<extra></extra>',
+        )
     )
+
     # QWP and HWP reference lines
-    fig.add_hline(y=90, line_dash="dash", annotation_text="QWP (90°)")
-    fig.add_hline(y=180, line_dash="dash", annotation_text="HWP (180°)")
-    fig.update_layout(
-        title="Retardance",
-        xaxis_title="Wavelength (nm)",
-        yaxis_title="Retardance (degrees)",
-        height=400
+    fig.add_hline(
+        y=qwp_val,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"  {qwp_text}",
+        annotation_position="right",
+        annotation_font=dict(size=FONT_SIZE_TICK)
     )
+    fig.add_hline(
+        y=hwp_val,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"  {hwp_text}",
+        annotation_position="right",
+        annotation_font=dict(size=FONT_SIZE_TICK)
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Wavelength (nm)",
+        yaxis_title=y_label,
+        height=400,
+        hovermode='x unified'
+    )
+
+    apply_common_styling(fig, show_grid=True)
+    return fig
+
+
+def create_retardance_comparison_plot(
+    samples_dict: dict,
+    wavelengths: ndarray,
+    unit: str = "degrees",
+    title: str = "Retardance Comparison"
+) -> go.Figure:
+    """
+    Create multi-sample retardance overlay plot with selectable unit.
+
+    Parameters
+    ----------
+    samples_dict : dict
+        Dictionary mapping sample names to LuChipmanResult objects or
+        (R_deg, R_rad, R_waves) tuples.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    unit : str
+        Unit to display: "degrees", "radians", or "waves".
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure.
+    """
+    import numpy as np
+
+    # Set up labels and reference values
+    if unit == "radians":
+        y_label = "Retardance (rad)"
+        qwp_val = np.pi / 2
+        hwp_val = np.pi
+        qwp_text = "QWP (π/2)"
+        hwp_text = "HWP (π)"
+    elif unit == "waves":
+        y_label = "Retardance (waves)"
+        qwp_val = 0.25
+        hwp_val = 0.5
+        qwp_text = "QWP (0.25)"
+        hwp_text = "HWP (0.5)"
+    else:  # degrees
+        y_label = "Retardance (°)"
+        qwp_val = 90
+        hwp_val = 180
+        qwp_text = "QWP (90°)"
+        hwp_text = "HWP (180°)"
+
+    fig = go.Figure()
+
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+              '#bcbd22', '#17becf']
+
+    for idx, (name, result) in enumerate(samples_dict.items()):
+        # Handle both LuChipmanResult objects and tuples
+        if hasattr(result, 'R_deg'):
+            if unit == "radians":
+                y_data = result.R_rad
+            elif unit == "waves":
+                y_data = result.R_waves
+            else:
+                y_data = result.R_deg
+        elif isinstance(result, tuple):
+            R_deg, R_rad, R_waves = result
+            if unit == "radians":
+                y_data = R_rad
+            elif unit == "waves":
+                y_data = R_waves
+            else:
+                y_data = R_deg
+        else:
+            # Assume it's R_deg array
+            if unit == "radians":
+                y_data = np.deg2rad(result)
+            elif unit == "waves":
+                y_data = result / 360.0
+            else:
+                y_data = result
+
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths,
+                y=y_data,
+                mode='lines',
+                name=name,
+                line=dict(color=colors[idx % len(colors)], width=2),
+                hovertemplate=f'{name}<br>λ=%{{x:.1f}} nm<br>R=%{{y:.4f}}<extra></extra>',
+            )
+        )
+
+    # QWP and HWP reference lines
+    fig.add_hline(
+        y=qwp_val,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"  {qwp_text}",
+        annotation_position="right",
+        annotation_font=dict(size=FONT_SIZE_TICK)
+    )
+    fig.add_hline(
+        y=hwp_val,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"  {hwp_text}",
+        annotation_position="right",
+        annotation_font=dict(size=FONT_SIZE_TICK)
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Wavelength (nm)",
+        yaxis_title=y_label,
+        height=400,
+        hovermode='x unified',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    apply_common_styling(fig, show_grid=True)
+    return fig
+
+
+# ============================================================================
+# FAST AXIS (ν) AND ELLIPTICITY (χ) PLOTS
+# ============================================================================
+
+def create_fast_axis_plot(
+    psi_deg: ndarray,
+    chi_deg: ndarray,
+    wavelengths: ndarray,
+    unit: str = "degrees",
+    sample_name: str = "Sample",
+    title: str = "Fast Axis & Ellipticity"
+) -> go.Figure:
+    """
+    Create 2-subplot vertical figure for fast axis (ν) and ellipticity (χ).
+
+    Parameters
+    ----------
+    psi_deg : ndarray
+        Fast-axis azimuth in degrees (ECM psi_deg, displayed as ν).
+    chi_deg : ndarray
+        Ellipticity angle in degrees.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    unit : str
+        "degrees" or "radians" (no waves for angles).
+    sample_name : str
+        Sample name for legend.
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure with 2 vertically stacked subplots.
+    """
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=["Fast Axis (ν)", "Ellipticity (χ)"],
+        shared_xaxes=True,
+        vertical_spacing=0.12
+    )
+
+    # Unit conversion
+    if unit == "radians":
+        psi_data = np.deg2rad(psi_deg)
+        chi_data = np.deg2rad(chi_deg)
+        psi_label, chi_label = "ν (rad)", "χ (rad)"
+        psi_range, chi_range = [-np.pi/2, np.pi/2], [-np.pi/4, np.pi/4]
+    else:
+        psi_data, chi_data = psi_deg, chi_deg
+        psi_label, chi_label = "ν (°)", "χ (°)"
+        psi_range, chi_range = [-90, 90], [-45, 45]
+
+    # Top: Fast axis ν
+    fig.add_trace(
+        go.Scatter(
+            x=wavelengths,
+            y=psi_data,
+            mode='lines',
+            name=sample_name,
+            line=dict(color='#1f77b4', width=2),
+            hovertemplate='λ=%{x:.1f} nm<br>ν=%{y:.2f}<extra></extra>',
+        ),
+        row=1, col=1
+    )
+
+    # Bottom: Ellipticity χ
+    fig.add_trace(
+        go.Scatter(
+            x=wavelengths,
+            y=chi_data,
+            mode='lines',
+            name=sample_name,
+            line=dict(color='#1f77b4', width=2),
+            showlegend=False,
+            hovertemplate='λ=%{x:.1f} nm<br>χ=%{y:.2f}<extra></extra>',
+        ),
+        row=2, col=1
+    )
+
+    # Reference lines (0 line for both)
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", row=1, col=1)
+    fig.add_hline(
+        y=0, line_dash="dash", line_color="gray", row=2, col=1,
+        annotation_text="  Linear", annotation_position="right",
+        annotation_font=dict(size=FONT_SIZE_TICK)
+    )
+
+    fig.update_layout(
+        title=title,
+        height=600,
+        hovermode='x unified'
+    )
+
+    # Set y-axis labels and ranges
+    fig.update_yaxes(title_text=psi_label, range=psi_range, row=1, col=1)
+    fig.update_yaxes(title_text=chi_label, range=chi_range, row=2, col=1)
+    fig.update_xaxes(title_text="Wavelength (nm)", row=2, col=1)
+
+    apply_common_styling(fig, show_grid=True)
+    return fig
+
+
+def create_fast_axis_comparison_plot(
+    samples_dict: dict,
+    wavelengths: ndarray,
+    unit: str = "degrees",
+    title: str = "Fast Axis Comparison"
+) -> go.Figure:
+    """
+    Create multi-sample comparison plot for fast axis and ellipticity.
+
+    Parameters
+    ----------
+    samples_dict : dict
+        Dictionary mapping sample names to LuChipmanResult objects.
+    wavelengths : ndarray
+        Wavelength values in nm.
+    unit : str
+        Unit to display: "degrees" or "radians".
+    title : str
+        Plot title.
+
+    Returns
+    -------
+    fig : go.Figure
+        Plotly figure with 2 vertically stacked subplots.
+    """
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=["Fast Axis (ν)", "Ellipticity (χ)"],
+        shared_xaxes=True,
+        vertical_spacing=0.12
+    )
+
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+              '#bcbd22', '#17becf']
+
+    # Unit settings
+    if unit == "radians":
+        psi_label, chi_label = "ν (rad)", "χ (rad)"
+        psi_range, chi_range = [-np.pi/2, np.pi/2], [-np.pi/4, np.pi/4]
+    else:
+        psi_label, chi_label = "ν (°)", "χ (°)"
+        psi_range, chi_range = [-90, 90], [-45, 45]
+
+    for idx, (name, result) in enumerate(samples_dict.items()):
+        color = colors[idx % len(colors)]
+
+        # Get data with unit conversion
+        if unit == "radians":
+            psi_data = np.deg2rad(result.psi_deg)
+            chi_data = np.deg2rad(result.chi_deg)
+        else:
+            psi_data = result.psi_deg
+            chi_data = result.chi_deg
+
+        # Top subplot: psi/nu
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths,
+                y=psi_data,
+                mode='lines',
+                name=name,
+                line=dict(color=color, width=2),
+                legendgroup=name,
+                hovertemplate=f'{name}<br>λ=%{{x:.1f}} nm<br>ν=%{{y:.2f}}<extra></extra>',
+            ),
+            row=1, col=1
+        )
+
+        # Bottom subplot: chi
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths,
+                y=chi_data,
+                mode='lines',
+                name=name,
+                line=dict(color=color, width=2),
+                legendgroup=name,
+                showlegend=False,
+                hovertemplate=f'{name}<br>λ=%{{x:.1f}} nm<br>χ=%{{y:.2f}}<extra></extra>',
+            ),
+            row=2, col=1
+        )
+
+    # Reference lines
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", row=1, col=1)
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", row=2, col=1)
+
+    fig.update_layout(
+        title=title,
+        height=600,
+        hovermode='x unified',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    fig.update_yaxes(title_text=psi_label, range=psi_range, row=1, col=1)
+    fig.update_yaxes(title_text=chi_label, range=chi_range, row=2, col=1)
+    fig.update_xaxes(title_text="Wavelength (nm)", row=2, col=1)
+
     apply_common_styling(fig, show_grid=True)
     return fig
