@@ -53,12 +53,13 @@
 
 ```
 streamlit_app/
-├── app.py                      # Home page
+├── HOME.py                     # Home page (MMForge - HOME)
 ├── pages/
-│   ├── 1_Configuration.py      # Configuration page
-│   ├── 2_Calibration.py        # Calibration page
-│   ├── 3_Processing.py         # Sample processing page
-│   └── 4_Parameters.py         # Lu-Chipman decomposition (renamed from 4_Lu_Chipman.py)
+│   ├── 1_CONFIGURATION.py      # Configuration page
+│   ├── 2_CALIBRATION.py        # Calibration page
+│   ├── 3_PROCESSING.py         # Sample processing page
+│   ├── 4_PARAMETERS.py         # Lu-Chipman decomposition
+│   └── 5_ADVANCED.py           # Advanced analysis (placeholder)
 ├── components/
 │   ├── __init__.py
 │   ├── sidebar.py              # Status indicator (🟢/🔴)
@@ -573,6 +574,88 @@ Based on user feedback, the following changes were made:
 
 ---
 
+### Phase 6.3: MMForge Branding & UI Polish - COMPLETED
+
+#### 1. MMForge Branding ✓
+- [x] **Color scheme**: Primary brand color `#FF1F5B` applied throughout
+- [x] **Page titles**: Updated to "MMForge - PAGE_NAME" format
+- [x] **Sidebar footer**: "MMForge v1.0" with "Built on ECM-Calibration v6.5.5"
+- [x] **Logo placement**: MMForge logo on HOME page in two-column layout with title
+
+#### 2. Page Naming (UPPERCASE) ✓
+- [x] Renamed all page files using `git mv`:
+  - `1_Configuration.py` → `1_CONFIGURATION.py`
+  - `2_Calibration.py` → `2_CALIBRATION.py`
+  - `3_Processing.py` → `3_PROCESSING.py`
+  - `4_Parameters.py` → `4_PARAMETERS.py`
+- [x] Created new `5_ADVANCED.py` placeholder page
+
+#### 3. CSS Theming ✓
+- [x] **Primary buttons**: Brand color with white text (`type="primary"`)
+  - Run Calibration button
+  - Process Selected button
+  - Run Decomposition button
+- [x] **Expander headers**: Brand color background with white text
+- [x] **Sidebar active page indicator**: Pink highlight with left border
+- [x] **Workflow boxes**: Muted brand color background (rgba(255, 31, 91, 0.15))
+- [x] **Interactive elements**: Sliders, checkboxes, progress bars in brand color
+
+#### 4. Quality Tier Colors ✓
+- [x] Updated quality tier colors in eigenvalue chart:
+  - Excellent: `#0C8AB3` (cyan/blue)
+  - Good: `#56D39A` (green)
+  - Acceptable: `#E8C34A` (yellow)
+  - Marginal: `#FF1F5B` (brand pink)
+  - Poor: `#C22026` (red)
+- [x] Trace colors palette for multi-sample comparison
+
+#### 5. Sidebar Updates ✓
+- [x] Removed logo from sidebar (placed on HOME page instead)
+- [x] Updated footer: removed "All rights reserved."
+- [x] Status indicator colors match brand theme
+
+**Files modified (Phase 6.3):**
+- `streamlit_app/app.py` - Logo+title layout, workflow boxes CSS, expander CSS, page title
+- `streamlit_app/components/sidebar.py` - Removed logo, updated footer
+- `streamlit_app/pages/1_CONFIGURATION.py` - Page title, expander CSS, button CSS
+- `streamlit_app/pages/2_CALIBRATION.py` - Page title, type=primary button, expander CSS
+- `streamlit_app/pages/3_PROCESSING.py` - Page title, type=primary button, expander CSS
+- `streamlit_app/pages/4_PARAMETERS.py` - Page title, type=primary button, expander CSS
+- `streamlit_app/pages/5_ADVANCED.py` - NEW placeholder page with all CSS theming
+- `streamlit_app/components/plots_plotly.py` - Quality tier colors, trace colors
+- `streamlit_app/.streamlit/config.toml` - Theme locked to light with primaryColor
+
+---
+
+### Phase 6.4: Minor Fixes - COMPLETED
+
+#### 1. Eigenvalue Plot - Removed Text Labels ✓
+- [x] Removed stacked text annotations ("Poor", "Marginal", "Acceptable", "Good", "Excellent") from right side of plot
+- [x] Kept colored shading regions for quality tiers
+- [x] Removed `annotation_text`, `annotation_position`, `annotation_font_size` from `add_hrect()` calls
+
+#### 2. Home Page Renamed to "HOME" ✓
+- [x] Renamed `app.py` to `HOME.py` using `git mv`
+- [x] Sidebar now shows "HOME" instead of just a home icon
+- [x] Run command changed to: `streamlit run HOME.py`
+- [x] Consistent UPPERCASE naming with other pages (CONFIGURATION, CALIBRATION, etc.)
+- Based on official Streamlit Hello.py example pattern (https://github.com/streamlit/hello)
+
+#### 3. Sidebar Footer Updated ✓
+- [x] New 5-line footer format:
+  - **MMForge v1.0** (bold)
+  - Built with Streamlit
+  - Powered by ECM-Calibration v6.5.5
+  - *Implements the Eigenvalue Calibration Method (ECM)* (italic)
+  - © 2026 Daniel Vala
+
+**Files modified (Phase 6.4):**
+- `streamlit_app/components/plots_plotly.py` - Removed annotation text from eigenvalue plot
+- `streamlit_app/app.py` → `streamlit_app/HOME.py` - Renamed for sidebar label
+- `streamlit_app/components/sidebar.py` - Updated footer format
+
+---
+
 ## WHAT'S NEXT: Phase 7 - Testing & Documentation
 
 #### Remaining Optional Items (Low Priority)
@@ -613,12 +696,12 @@ Based on user feedback, the following changes were made:
 
 ```bash
 cd /Users/danielvala/Documents/PYTHON/VS/ECM-GUI/streamlit_app
-streamlit run app.py
+streamlit run HOME.py
 ```
 
 Or with auto-reload:
 ```bash
-streamlit run app.py --server.runOnSave true
+streamlit run HOME.py --server.runOnSave true
 ```
 
 ---

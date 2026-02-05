@@ -40,11 +40,6 @@ def render_sidebar():
     """
     with st.sidebar:
         # -------------------------------------------------
-        # Divider before status
-        # -------------------------------------------------
-        st.markdown("---")
-
-        # -------------------------------------------------
         # Calibration Status Indicator
         # -------------------------------------------------
         st.markdown("### Status")
@@ -117,7 +112,11 @@ def render_sidebar():
             }
             </style>
             <div class="sidebar-version">
-                ECM Polarimetry v6.5.5
+                <strong>MMForge v1.0</strong><br>
+                Built with Streamlit<br>
+                Powered by ECM-Calibration v6.5.5<br>
+                <em>Implements the Eigenvalue Calibration Method (ECM)</em><br>
+                © 2026 Daniel Vala
             </div>
             """,
             unsafe_allow_html=True

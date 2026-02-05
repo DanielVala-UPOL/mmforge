@@ -2,5 +2,6 @@
 toolbarMode = "minimal"
 
 [theme]
-# Lock to light theme
+# Lock to light theme with MMForge primary color
 base = "light"
+primaryColor = "#FF1F5B"

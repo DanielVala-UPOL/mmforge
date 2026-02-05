@@ -21,7 +21,7 @@ Author: Daniel Vala
 # - Font sizes: FONT_SIZE_* constants defined below
 # - Grid: Always show grid (except Quality Breakdown)
 # - No box frames around plots
-# - Blue (#1f77b4) for single traces, color palette for multi-sample overlays
+# - Blue (TRACE_COLORS[0]) for single traces, TRACE_COLORS for multi-sample overlays
 # - Wavelength on x-axis with label "Wavelength (nm)"
 # - Y-axis labels specific to parameter (e.g., "DI", "R (deg)", "ν (deg)")
 # - Use subscript HTML format for matrix elements (M<sub>11</sub>)
@@ -49,6 +49,34 @@ FONT_SIZE_LEGEND = 16
 # Grid styling
 GRID_COLOR = 'lightgray'
 GRID_WIDTH = 1
+
+# ============================================================================
+# MMFORGE COLOR PALETTE
+# ============================================================================
+
+# Primary brand color
+PRIMARY_COLOR = '#FF1F5B'
+
+# Quality tier colors (muted versions for charts)
+QUALITY_COLORS = {
+    'excellent': '#0C8AB3',  # Blue
+    'good': '#56D39A',       # Green
+    'acceptable': '#E8C34A', # Gold
+    'marginal': '#FF1F5B',   # Magenta (primary)
+    'poor': '#C22026',       # Dark red
+}
+
+# Multi-trace color sequence for comparison plots
+TRACE_COLORS = [
+    '#0C8AB3',  # Blue (1st)
+    '#FF1F5B',  # Magenta/primary (2nd)
+    '#56D39A',  # Green (3rd)
+    '#E8C34A',  # Gold (4th)
+    '#C22026',  # Dark red (5th)
+    '#9467bd',  # Purple (6th)
+    '#8c564b',  # Brown (7th)
+    '#7f7f7f',  # Gray (8th)
+]
 
 
 def apply_common_styling(fig, show_grid=True):
@@ -152,7 +180,7 @@ def create_mueller_matrix_plot(
                     y=y_data,
                     mode='lines',
                     name=f'm{i+1}{j+1}',
-                    line=dict(color='#1f77b4'),  # Explicit blue for all traces
+                    line=dict(color=TRACE_COLORS[0]),  # Explicit blue for all traces
                     hovertemplate=f'{hover_label}<br>λ=%{{x:.1f}} nm<br>Value=%{{y:.4f}}<extra></extra>',
                     showlegend=False
                 ),
@@ -216,10 +244,7 @@ def create_selected_elements_plot(
     """
     fig = go.Figure()
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf', '#1f77b4', '#ff7f0e',
-              '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+    colors = TRACE_COLORS
 
     for idx, (i, j) in enumerate(selected_elements):
         # Use subscript format in legend
@@ -260,7 +285,7 @@ def create_eigenvalue_plot(
     title: str = "Eigenvalue Ratio (Calibration Quality)"
 ) -> go.Figure:
     """
-    Create interactive eigenvalue ratio plot with threshold lines.
+    Create interactive eigenvalue ratio plot with shaded quality regions.
 
     Parameters
     ----------
@@ -278,34 +303,34 @@ def create_eigenvalue_plot(
     """
     fig = go.Figure()
 
-    # Main data trace
+    # Quality tier background regions (shaded)
+    quality_regions = [
+        (1e-6, 1e-4, QUALITY_COLORS['excellent'], 'Excellent'),
+        (1e-4, 1e-3, QUALITY_COLORS['good'], 'Good'),
+        (1e-3, 1e-2, QUALITY_COLORS['acceptable'], 'Acceptable'),
+        (1e-2, 0.1, QUALITY_COLORS['marginal'], 'Marginal'),
+        (0.1, 10, QUALITY_COLORS['poor'], 'Poor'),
+    ]
+
+    for y0, y1, color, label in quality_regions:
+        fig.add_hrect(
+            y0=y0, y1=y1,
+            fillcolor=color,
+            opacity=0.15,
+            line_width=0,
+        )
+
+    # Main data trace (black curve on top of shaded regions)
     fig.add_trace(
         go.Scatter(
             x=wavelengths,
             y=eigenvalue_ratios,
             mode='lines',
             name='Eigenvalue Ratio',
-            line=dict(color='#9467bd', width=2),
+            line=dict(color='black', width=2),
             hovertemplate='λ=%{x:.1f} nm<br>Ratio=%{y:.2e}<extra></extra>',
         )
     )
-
-    # Threshold lines (colors match Quality Breakdown bars)
-    thresholds = [
-        (1e-4, 'Excellent', '#17a2b8'),  # cyan/blue
-        (1e-3, 'Good', '#28a745'),       # green
-        (1e-2, 'Acceptable', '#ffc107'), # yellow
-    ]
-
-    for threshold, label, color in thresholds:
-        fig.add_hline(
-            y=threshold,
-            line_dash="dash",
-            line_color=color,
-            annotation_text=f"  {label} ({threshold:.0e})",
-            annotation_position="right",
-            annotation_font=dict(size=FONT_SIZE_TICK)
-        )
 
     fig.update_layout(
         title=title,
@@ -354,7 +379,13 @@ def create_quality_breakdown_chart(
     """
     categories = ['Excellent', 'Good', 'Acceptable', 'Marginal', 'Poor']
     keys = ['excellent', 'good', 'acceptable', 'marginal', 'poor']
-    colors = ['#17a2b8', '#28a745', '#ffc107', '#fd7e14', '#dc3545']
+    colors = [
+        QUALITY_COLORS['excellent'],
+        QUALITY_COLORS['good'],
+        QUALITY_COLORS['acceptable'],
+        QUALITY_COLORS['marginal'],
+        QUALITY_COLORS['poor'],
+    ]
 
     counts = [quality_counts.get(k, 0) for k in keys]
     percentages = [100 * c / total if total > 0 else 0 for c in counts]
@@ -597,7 +628,7 @@ def create_m00_plot(
             y=m00,
             mode='lines',
             name=sample_name,
-            line=dict(color='#1f77b4', width=2),
+            line=dict(color=TRACE_COLORS[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>M₀₀=%{y:.4f}<extra></extra>',
         )
     )
@@ -640,9 +671,7 @@ def create_m00_comparison_plot(
     """
     fig = go.Figure()
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
+    colors = TRACE_COLORS
 
     for idx, (name, m00) in enumerate(m00_dict.items()):
         fig.add_trace(
@@ -713,9 +742,7 @@ def create_mueller_comparison_plot(
         horizontal_spacing=0.05
     )
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
+    colors = TRACE_COLORS
 
     sample_names = list(samples_dict.keys())
 
@@ -833,7 +860,7 @@ def create_diattenuation_plot(
             y=D,
             mode='lines',
             name=sample_name,
-            line=dict(color='#1f77b4', width=2),
+            line=dict(color=TRACE_COLORS[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>D=%{y:.4f}<extra></extra>',
         )
     )
@@ -875,9 +902,7 @@ def create_diattenuation_comparison_plot(
     """
     fig = go.Figure()
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
+    colors = TRACE_COLORS
 
     for idx, (name, D) in enumerate(samples_dict.items()):
         fig.add_trace(
@@ -938,7 +963,7 @@ def create_di_plot(
             y=DI,
             mode='lines',
             name=sample_name,
-            line=dict(color='#1f77b4', width=2),
+            line=dict(color=TRACE_COLORS[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>DI=%{y:.4f}<extra></extra>',
         )
     )
@@ -980,9 +1005,7 @@ def create_di_comparison_plot(
     """
     fig = go.Figure()
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
+    colors = TRACE_COLORS
 
     for idx, (name, DI) in enumerate(samples_dict.items()):
         fig.add_trace(
@@ -1083,7 +1106,7 @@ def create_retardance_plot(
             y=y_data,
             mode='lines',
             name=sample_name,
-            line=dict(color='#1f77b4', width=2),
+            line=dict(color=TRACE_COLORS[0], width=2),
             hovertemplate=f'λ=%{{x:.1f}} nm<br>R=%{{y:.4f}}<extra></extra>',
         )
     )
@@ -1168,9 +1191,7 @@ def create_retardance_comparison_plot(
 
     fig = go.Figure()
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
+    colors = TRACE_COLORS
 
     for idx, (name, result) in enumerate(samples_dict.items()):
         # Handle both LuChipmanResult objects and tuples
@@ -1300,7 +1321,7 @@ def create_fast_axis_plot(
             y=psi_data,
             mode='lines',
             name=sample_name,
-            line=dict(color='#1f77b4', width=2),
+            line=dict(color=TRACE_COLORS[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>ν=%{y:.2f}<extra></extra>',
         ),
         row=1, col=1
@@ -1313,7 +1334,7 @@ def create_fast_axis_plot(
             y=chi_data,
             mode='lines',
             name=sample_name,
-            line=dict(color='#1f77b4', width=2),
+            line=dict(color=TRACE_COLORS[0], width=2),
             showlegend=False,
             hovertemplate='λ=%{x:.1f} nm<br>χ=%{y:.2f}<extra></extra>',
         ),
@@ -1375,9 +1396,7 @@ def create_fast_axis_comparison_plot(
         vertical_spacing=0.12
     )
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
-              '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
-              '#bcbd22', '#17becf']
+    colors = TRACE_COLORS
 
     # Unit settings
     if unit == "radians":

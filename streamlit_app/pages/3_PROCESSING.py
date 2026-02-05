@@ -20,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from components.sidebar import render_sidebar
-from components.file_browser import directory_selector_compact
 from components.plots_plotly import (
     create_mueller_matrix_plot,
     create_selected_elements_plot,
@@ -53,7 +52,7 @@ from ecm.utils.io import load_spectral_data
 # ============================================================================
 
 st.set_page_config(
-    page_title="ECM - Processing",
+    page_title="MMForge - PROCESSING",
     page_icon=None,
     layout="wide"
 )
@@ -63,6 +62,69 @@ st.html("""
     <style>
         .stMainBlockContainer {
             max-width: 61rem;
+        }
+    </style>
+""")
+
+# MMForge primary color theming
+st.html("""
+    <style>
+        /* Primary color for interactive elements */
+        .stSlider > div > div > div > div {
+            background-color: #FF1F5B !important;
+        }
+        .stProgress > div > div > div > div {
+            background-color: #FF1F5B !important;
+        }
+        .stCheckbox > label > div[data-checked="true"] {
+            background-color: #FF1F5B !important;
+            border-color: #FF1F5B !important;
+        }
+
+        /* Primary buttons */
+        .stButton > button[kind="primary"] {
+            background-color: #FF1F5B !important;
+            border-color: #FF1F5B !important;
+            color: white !important;
+        }
+        .stButton > button[kind="primary"]:hover {
+            background-color: #d91a4e !important;
+            border-color: #d91a4e !important;
+            color: white !important;
+        }
+
+        /* Message colors */
+        .stSuccess {
+            background-color: rgba(86, 211, 154, 0.1) !important;
+            border-left-color: #56D39A !important;
+        }
+        .stWarning {
+            background-color: rgba(232, 195, 74, 0.1) !important;
+            border-left-color: #E8C34A !important;
+        }
+        .stInfo {
+            background-color: rgba(12, 138, 179, 0.1) !important;
+            border-left-color: #0C8AB3 !important;
+        }
+
+        /* Sidebar active page indicator */
+        [data-testid="stSidebarNav"] li[aria-selected="true"] {
+            background-color: rgba(255, 31, 91, 0.1) !important;
+            border-left: 3px solid #FF1F5B !important;
+        }
+
+        /* Expander headers with brand color */
+        [data-testid="stExpander"] > details > summary {
+            background-color: #FF1F5B !important;
+            color: white !important;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+        }
+        [data-testid="stExpander"] > details > summary:hover {
+            background-color: #d91a4e !important;
+        }
+        [data-testid="stExpander"] > details > summary svg {
+            fill: white !important;
         }
     </style>
 """)
@@ -120,17 +182,17 @@ def build_config_from_session():
 
 
 def discover_samples():
-    """Discover sample files in the sample directory."""
-    sample_dir = st.session_state.get('sample_dir_path', '')
-    if not sample_dir:
-        st.error("Sample directory not set. Enter the path to your sample data folder above.")
+    """Discover sample files in the data directory."""
+    data_dir = st.session_state.get('data_dir_path', '')
+    if not data_dir:
+        st.error("Data directory not set. Go to **Configuration** page and set the data directory first.")
         return
 
     cfg = build_config_from_session()
 
     try:
         with st.spinner("Discovering sample files..."):
-            samples = discover_sample_files(Path(sample_dir), cfg)
+            samples = discover_sample_files(Path(data_dir), cfg)
 
         st.session_state['discovered_samples'] = samples
         st.session_state['selected_samples'] = []  # Reset selection
@@ -531,25 +593,21 @@ def main():
     has_processed = len(get_processed_samples()) > 0
 
     with st.expander("Sample Selection", expanded=not has_processed):
-        st.markdown("Select the directory containing your sample measurements.")
+        st.markdown("Discover and select samples from your data directory.")
 
-        # Sample directory input
-        sample_dir = directory_selector_compact(
-            label="Sample Directory",
-            key="sample_dir",
-            default_path=""
-        )
-
-        # Discover button
-        discover_disabled = not st.session_state.get('sample_dir_path', '')
+        # Discover button (uses data_dir from Configuration)
+        discover_disabled = not st.session_state.get('data_dir_path', '')
 
         if st.button(
             "Discover Samples",
             use_container_width=False,
             disabled=discover_disabled,
-            help="Enter sample directory path first" if discover_disabled else None
+            help="Set data directory in Configuration first" if discover_disabled else None
         ):
             discover_samples()
+
+        if discover_disabled:
+            st.caption("Set the data directory in Configuration page first.")
 
         # Display sample checkboxes
         st.markdown("---")
@@ -568,6 +626,7 @@ def main():
 
         if st.button(
             "Process Selected",
+            type="primary",
             use_container_width=True,
             disabled=process_disabled,
             help="Select samples first" if process_disabled else f"Process {len(selected)} sample(s)"
