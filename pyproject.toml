@@ -7,7 +7,7 @@ name = "ecm-polarimetry"
 version = "6.5.5"
 description = "Ellipsometric Calibration Method for Mueller Matrix Polarimetry"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Proprietary"}
 requires-python = ">=3.9"
 authors = [
     {name = "Daniel Vala"}
@@ -23,7 +23,7 @@ keywords = [
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
