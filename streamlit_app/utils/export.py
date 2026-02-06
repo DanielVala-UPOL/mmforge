@@ -12,8 +12,6 @@ Author: Daniel Vala
 import numpy as np
 from numpy import ndarray
 import pandas as pd
-from pathlib import Path
-from typing import Optional
 
 
 # ============================================================================

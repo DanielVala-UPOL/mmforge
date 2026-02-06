@@ -23,7 +23,6 @@ from components.sidebar import render_sidebar
 from components.plots_plotly import (
     create_mueller_matrix_plot,
     create_selected_elements_plot,
-    create_m00_plot,
     create_mueller_comparison_plot,
 )
 from components.mueller_selector import mueller_element_selector

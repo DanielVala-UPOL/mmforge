@@ -9,8 +9,7 @@ Features
 - Complete ECM calibration pipeline for transmission mode
 - Lu-Chipman polar decomposition of Mueller matrices
 - Publication-quality visualization tools
-- Command-line interface for batch processing
-- Comprehensive test suite (383 tests)
+- Streamlit GUI for interactive analysis
 
 References
 ----------
@@ -58,12 +57,6 @@ Quick Start
 >>> from ecm.core import process_sample
 >>> M, M_norm = process_sample(sample_data, result, cfg)
 >>> lu_result = lu_chipman_decomposition(M_norm)
-
-CLI Commands
-------------
-    ecm-calibrate   Run ECM calibration
-    ecm-process     Process samples using saved calibration
-    ecm-postprocess Lu-Chipman decomposition on processed samples
 
 Version History
 ---------------

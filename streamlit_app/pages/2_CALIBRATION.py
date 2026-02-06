@@ -20,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from components.sidebar import render_sidebar
-from components.file_browser import file_selector
 from components.plots_plotly import (
     create_eigenvalue_plot,
     create_quality_breakdown_chart,
@@ -28,7 +27,6 @@ from components.plots_plotly import (
 from utils.session_state import (
     initialize_session_state,
     is_calibrated,
-    get_calibration_info,
     set_calibration,
     clear_calibration,
     get_calibration_result,
@@ -139,9 +137,6 @@ def discover_and_display_files():
 
         return cal_files
 
-    #except FileNotFoundError as e:
-    #    st.error(f"File discovery failed. Check that the data directory contains the required calibration files (DARK, ST, P0, P45, FP1). Error: {e}")
-    #    return None
     except ValueError as e:
         st.error(f"Multiple matching files found. Ensure each calibration type has only one .bin file in the directory. Error: {e}")
         return None

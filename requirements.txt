@@ -1,6 +1,6 @@
-# ECM Calibration - Python Dependencies
-# =====================================
-# Core dependencies for Mueller matrix polarimetry calibration
+# MMForge - Streamlit Cloud Dependencies
+# =======================================
+# Optimized for deployment - unused packages removed
 #
 # Install with: pip install -r requirements.txt
 
@@ -8,14 +8,20 @@
 numpy>=1.24.0
 scipy>=1.10.0
 
-# Visualization
+# Visualization (backend)
 matplotlib>=3.7.0
 
-# Optimization and fitting
-lmfit>=1.2.0
+# GUI framework
+streamlit>=1.30.0
+
+# Interactive plotting
+plotly>=5.18.0
+
+# Data handling
+pandas>=2.0.0
 
 # Configuration serialization
 pyyaml>=6.0
 
-# Progress bars for long operations
+# Progress bars for calibration
 tqdm>=4.65.0
