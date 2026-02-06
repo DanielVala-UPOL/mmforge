@@ -19,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.session_state import is_calibrated
+from utils.styling import soft_divider
 
 
 # ============================================================================
@@ -39,6 +40,8 @@ def render_sidebar():
     - Not calibrated: red circle, "Not calibrated"
     """
     with st.sidebar:
+        # Logo is now injected via CSS in utils/styling.py above the navigation
+
         # -------------------------------------------------
         # Calibration Status Indicator
         # -------------------------------------------------
@@ -67,14 +70,14 @@ def render_sidebar():
         # -------------------------------------------------
         # Session Section
         # -------------------------------------------------
-        st.markdown("---")
+        soft_divider()
         st.markdown("### Session")
 
         if st.button("Reset Session", use_container_width=True, type="secondary"):
             st.session_state['_confirm_reset'] = True
 
         if st.session_state.get('_confirm_reset', False):
-            st.warning("Clear all data?")
+            st.warning("Clear all and start over?")
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Confirm", type="primary", use_container_width=True, key="sidebar_confirm_reset"):
@@ -107,15 +110,13 @@ def render_sidebar():
                 padding: 20px 0;
                 text-align: center;
                 color: #666;
-                font-size: 0.8em;
+                font-size: 0.7em;
                 border-top: 1px solid #ddd;
             }
             </style>
             <div class="sidebar-version">
                 <strong>MMForge v1.0</strong><br>
-                Built with Streamlit<br>
-                Powered by ECM-Calibration v6.5.5<br>
-                <em>Implements the Eigenvalue Calibration Method (ECM)</em><br>
+                ECM-Calibration v6.5.5<br>
                 © 2026 Daniel Vala
             </div>
             """,

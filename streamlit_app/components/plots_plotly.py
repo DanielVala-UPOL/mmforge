@@ -62,55 +62,99 @@ QUALITY_COLORS = {
     'excellent': '#0C8AB3',  # Blue
     'good': '#56D39A',       # Green
     'acceptable': '#E8C34A', # Gold
-    'marginal': '#FF1F5B',   # Magenta (primary)
+    'marginal': '#FF1F5B',   # Magenta (Brand color)
     'poor': '#C22026',       # Dark red
 }
 
 # Multi-trace color sequence for comparison plots
 TRACE_COLORS = [
     '#0C8AB3',  # Blue (1st)
-    '#FF1F5B',  # Magenta/primary (2nd)
+    '#FF1F5B',  # Magenta/Brand color (2nd)
     '#56D39A',  # Green (3rd)
     '#E8C34A',  # Gold (4th)
-    '#C22026',  # Dark red (5th)
+    "#EC3CF9",  # Pink (5th)
     '#9467bd',  # Purple (6th)
     '#8c564b',  # Brown (7th)
     '#7f7f7f',  # Gray (8th)
+    "#20c9e7",  # Cyan (9th)
+    "#a6b840",  # Army (10th)
+    "#1AFF00",  # GREEN! (11th)
+    "#f6ff00",  # Yellow (12th)
+    "#0015ff",  # BLUE! (13th)
+    "#ff7b00",  # Orange (14th)
+    "#FF0000",  # RED! (15th)
+    "#000000",  # Black (16th)
 ]
 
 
 def apply_common_styling(fig, show_grid=True):
-    """Apply common styling to all plots."""
+    """
+    Apply common styling to all plots for a refined, publication-ready appearance.
+
+    Parameters
+    ----------
+    fig : go.Figure
+        Plotly figure to style.
+    show_grid : bool
+        Whether to show grid lines (default True, False for bar charts).
+
+    Returns
+    -------
+    fig : go.Figure
+        Styled figure.
+    """
+    # Clean, professional layout
     fig.update_layout(
-        font=dict(size=FONT_SIZE_BASE),
+        # Font consistency
+        font=dict(
+            family='Arial, sans-serif',
+            size=FONT_SIZE_BASE,
+            color='#333333'
+        ),
         title_font=dict(size=FONT_SIZE_TITLE),
-        legend=dict(font=dict(size=FONT_SIZE_LEGEND)),
+
+        # Clean background
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+
+        # Refined margins (increased bottom for x-axis label + legend)
+        margin=dict(l=60, r=40, t=80, b=100),
+
+        # Legend styling - positioned below plot with adequate spacing
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.15,  # More space from plot edge
+            xanchor="center",
+            x=0.5,
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='#E0E0E0',
+            borderwidth=1,
+            font=dict(size=FONT_SIZE_LEGEND),
+        ),
+
+        # Hover styling
+        hoverlabel=dict(
+            bgcolor='white',
+            bordercolor='#2D3E50',
+            font=dict(size=12, color='#333333')
+        )
     )
 
-    if show_grid:
-        fig.update_xaxes(
-            showgrid=True,
-            gridwidth=GRID_WIDTH,
-            gridcolor=GRID_COLOR,
-            title_font=dict(size=FONT_SIZE_AXIS_TITLE),
-            tickfont=dict(size=FONT_SIZE_TICK)
-        )
-        fig.update_yaxes(
-            showgrid=True,
-            gridwidth=GRID_WIDTH,
-            gridcolor=GRID_COLOR,
-            title_font=dict(size=FONT_SIZE_AXIS_TITLE),
-            tickfont=dict(size=FONT_SIZE_TICK)
-        )
-    else:
-        fig.update_xaxes(
-            title_font=dict(size=FONT_SIZE_AXIS_TITLE),
-            tickfont=dict(size=FONT_SIZE_TICK)
-        )
-        fig.update_yaxes(
-            title_font=dict(size=FONT_SIZE_AXIS_TITLE),
-            tickfont=dict(size=FONT_SIZE_TICK)
-        )
+    # Refined axis styling
+    axis_style = dict(
+        showgrid=show_grid,
+        gridwidth=1,
+        gridcolor='#F0F0F0' if show_grid else None,
+        showline=True,
+        linewidth=1,
+        linecolor='#E0E0E0',
+        tickfont=dict(size=FONT_SIZE_TICK, color='#666666'),
+        title_font=dict(size=FONT_SIZE_AXIS_TITLE, color='#333333'),
+    )
+
+    fig.update_xaxes(**axis_style)
+    fig.update_yaxes(**axis_style)
 
     return fig
 
@@ -190,7 +234,8 @@ def create_mueller_matrix_plot(
     fig.update_layout(
         title=title,
         height=800,
-        hovermode='x unified'
+        hovermode='x unified',
+        margin=dict(l=60, r=40, t=80, b=100),  # Increased bottom margin
     )
 
     # Apply styling with grid
@@ -205,11 +250,11 @@ def create_mueller_matrix_plot(
             else:
                 fig.update_yaxes(range=[-1.1, 1.1], row=i+1, col=j+1)
 
-    # Common x-axis label at bottom
+    # Common x-axis label at bottom - centered below tick labels
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.06,
+        x=0.5, y=-0.08,  # Positioned below tick labels
         showarrow=False,
         font=dict(size=FONT_SIZE_AXIS_TITLE)
     )
@@ -264,14 +309,25 @@ def create_selected_elements_plot(
         title=title,
         xaxis_title="Wavelength (nm)",
         yaxis_title="Normalized Value",
-        height=500,
+        height=550,
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        margin=dict(l=60, r=40, t=60, b=100),  # Extra bottom for many legend items
     )
 
     # Apply styling with grid - legend toggle is enabled by default in Plotly
     apply_common_styling(fig, show_grid=True)
 
+    # Override legend AFTER apply_common_styling - can have many elements
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.15,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=12),  # Smaller font for potentially many items
+        )
+    )
     return fig
 
 
@@ -377,14 +433,15 @@ def create_quality_breakdown_chart(
     fig : go.Figure
         Plotly figure.
     """
-    categories = ['Excellent', 'Good', 'Acceptable', 'Marginal', 'Poor']
-    keys = ['excellent', 'good', 'acceptable', 'marginal', 'poor']
+    # Reversed order: Poor at bottom (index 0), Excellent at top (displayed at top of horizontal bar chart)
+    categories = ['Poor', 'Marginal', 'Acceptable', 'Good', 'Excellent']
+    keys = ['poor', 'marginal', 'acceptable', 'good', 'excellent']
     colors = [
-        QUALITY_COLORS['excellent'],
-        QUALITY_COLORS['good'],
-        QUALITY_COLORS['acceptable'],
-        QUALITY_COLORS['marginal'],
         QUALITY_COLORS['poor'],
+        QUALITY_COLORS['marginal'],
+        QUALITY_COLORS['acceptable'],
+        QUALITY_COLORS['good'],
+        QUALITY_COLORS['excellent'],
     ]
 
     counts = [quality_counts.get(k, 0) for k in keys]
@@ -478,7 +535,8 @@ def create_matrix_elements_plot(
     fig.update_layout(
         title=f"{matrix_name} Matrix Elements vs Wavelength",
         height=800,
-        hovermode='x unified'
+        hovermode='x unified',
+        margin=dict(l=60, r=40, t=80, b=100),
     )
 
     # Apply styling with grid
@@ -488,7 +546,7 @@ def create_matrix_elements_plot(
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.06,
+        x=0.5, y=-0.08,
         showarrow=False,
         font=dict(size=FONT_SIZE_AXIS_TITLE)
     )
@@ -573,7 +631,8 @@ def create_air_validation_plot(
     fig.update_layout(
         title="Air Validation: A @ W (should equal Identity Matrix)",
         height=800,
-        hovermode='x unified'
+        hovermode='x unified',
+        margin=dict(l=60, r=40, t=80, b=100),
     )
 
     # Apply styling with grid
@@ -583,7 +642,7 @@ def create_air_validation_plot(
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.06,
+        x=0.5, y=-0.08,
         showarrow=False,
         font=dict(size=FONT_SIZE_AXIS_TITLE)
     )
@@ -689,14 +748,25 @@ def create_m00_comparison_plot(
         title=title,
         xaxis_title="Wavelength (nm)",
         yaxis_title="Transmission (a.u.)",
-        height=400,
+        height=450,
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     # Apply styling with grid
     apply_common_styling(fig, show_grid=True)
 
+    # Override legend AFTER apply_common_styling
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.18,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=13),
+        )
+    )
     return fig
 
 
@@ -775,12 +845,12 @@ def create_mueller_comparison_plot(
 
     fig.update_layout(
         title=title,
-        height=800,
+        height=900,  # Increased height to accommodate legend at bottom
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        margin=dict(l=60, r=40, t=80, b=120),  # Increased bottom margin
     )
 
-    # Apply styling with grid
+    # Apply styling with grid (but override legend position after)
     apply_common_styling(fig, show_grid=True)
 
     # Set y-limits for matrix elements
@@ -792,21 +862,36 @@ def create_mueller_comparison_plot(
             else:
                 fig.update_yaxes(range=[-1.1, 1.1], row=i+1, col=j+1)
 
-    # Common x-axis label at bottom
+    # Common x-axis label - positioned well below tick labels
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.06,
+        x=0.5, y=-0.08,  # Safely below tick labels
         showarrow=False,
         font=dict(size=FONT_SIZE_AXIS_TITLE)
+    )
+
+    # Override legend: place below x-axis label with adequate spacing
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.13,  # Below the x-axis label annotation
+            xanchor="center",
+            x=0.5,
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='#E0E0E0',
+            borderwidth=1,
+            font=dict(size=13),
+        )
     )
 
     return fig
 
 
-# ============================================================================
-# LU-CHIPMAN PARAMETER PLOTS (placeholders for Phase 5)
-# ============================================================================
+# ============================
+# LU-CHIPMAN PARAMETER PLOTS
+# ============================
 
 def create_depolarization_plot(
     DI: ndarray,
@@ -921,12 +1006,24 @@ def create_diattenuation_comparison_plot(
         xaxis_title="Wavelength (nm)",
         yaxis_title="Diattenuation (D)",
         yaxis=dict(range=[0, 1]),
-        height=400,
+        height=450,  # Slightly taller to accommodate legend
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     apply_common_styling(fig, show_grid=True)
+
+    # Override legend AFTER apply_common_styling to prevent overwrite
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.18,  # Below x-axis label
+            xanchor="center",
+            x=0.5,
+            font=dict(size=13),
+        )
+    )
     return fig
 
 
@@ -1024,12 +1121,24 @@ def create_di_comparison_plot(
         xaxis_title="Wavelength (nm)",
         yaxis_title="Depolarization Index (DI)",
         yaxis=dict(range=[0, 1.05]),
-        height=400,
+        height=450,
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     apply_common_styling(fig, show_grid=True)
+
+    # Override legend AFTER apply_common_styling
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.18,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=13),
+        )
+    )
     return fig
 
 
@@ -1252,12 +1361,24 @@ def create_retardance_comparison_plot(
         title=title,
         xaxis_title="Wavelength (nm)",
         yaxis_title=y_label,
-        height=400,
+        height=450,
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     apply_common_styling(fig, show_grid=True)
+
+    # Override legend AFTER apply_common_styling
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.18,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=13),
+        )
+    )
     return fig
 
 
@@ -1271,7 +1392,7 @@ def create_fast_axis_plot(
     wavelengths: ndarray,
     unit: str = "degrees",
     sample_name: str = "Sample",
-    title: str = "Fast Axis & Ellipticity"
+    title: str = "Eigenmodes"
 ) -> go.Figure:
     """
     Create 2-subplot vertical figure for fast axis (ν) and ellipticity (χ).
@@ -1368,7 +1489,7 @@ def create_fast_axis_comparison_plot(
     samples_dict: dict,
     wavelengths: ndarray,
     unit: str = "degrees",
-    title: str = "Fast Axis Comparison"
+    title: str = "Eigenmodes Comparison"
 ) -> go.Figure:
     """
     Create multi-sample comparison plot for fast axis and ellipticity.
@@ -1452,9 +1573,9 @@ def create_fast_axis_comparison_plot(
 
     fig.update_layout(
         title=title,
-        height=600,
+        height=650,
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     fig.update_yaxes(title_text=psi_label, range=psi_range, row=1, col=1)
@@ -1462,4 +1583,16 @@ def create_fast_axis_comparison_plot(
     fig.update_xaxes(title_text="Wavelength (nm)", row=2, col=1)
 
     apply_common_styling(fig, show_grid=True)
+
+    # Override legend AFTER apply_common_styling
+    fig.update_layout(
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.12,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=13),
+        )
+    )
     return fig

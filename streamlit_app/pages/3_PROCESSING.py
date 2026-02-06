@@ -40,6 +40,7 @@ from utils.session_state import (
     set_selected_elements,
     get_config,
 )
+from utils.styling import inject_custom_css, soft_divider
 
 # ECM imports
 from ecm.io import discover_sample_files
@@ -57,77 +58,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom page width (~1.3x default centered = 61rem)
-st.html("""
-    <style>
-        .stMainBlockContainer {
-            max-width: 61rem;
-        }
-    </style>
-""")
-
-# MMForge primary color theming
-st.html("""
-    <style>
-        /* Primary color for interactive elements */
-        .stSlider > div > div > div > div {
-            background-color: #FF1F5B !important;
-        }
-        .stProgress > div > div > div > div {
-            background-color: #FF1F5B !important;
-        }
-        .stCheckbox > label > div[data-checked="true"] {
-            background-color: #FF1F5B !important;
-            border-color: #FF1F5B !important;
-        }
-
-        /* Primary buttons */
-        .stButton > button[kind="primary"] {
-            background-color: #FF1F5B !important;
-            border-color: #FF1F5B !important;
-            color: white !important;
-        }
-        .stButton > button[kind="primary"]:hover {
-            background-color: #d91a4e !important;
-            border-color: #d91a4e !important;
-            color: white !important;
-        }
-
-        /* Message colors */
-        .stSuccess {
-            background-color: rgba(86, 211, 154, 0.1) !important;
-            border-left-color: #56D39A !important;
-        }
-        .stWarning {
-            background-color: rgba(232, 195, 74, 0.1) !important;
-            border-left-color: #E8C34A !important;
-        }
-        .stInfo {
-            background-color: rgba(12, 138, 179, 0.1) !important;
-            border-left-color: #0C8AB3 !important;
-        }
-
-        /* Sidebar active page indicator */
-        [data-testid="stSidebarNav"] li[aria-selected="true"] {
-            background-color: rgba(255, 31, 91, 0.1) !important;
-            border-left: 3px solid #FF1F5B !important;
-        }
-
-        /* Expander headers with brand color */
-        [data-testid="stExpander"] > details > summary {
-            background-color: #FF1F5B !important;
-            color: white !important;
-            border-radius: 4px;
-            padding: 0.5rem 1rem;
-        }
-        [data-testid="stExpander"] > details > summary:hover {
-            background-color: #d91a4e !important;
-        }
-        [data-testid="stExpander"] > details > summary svg {
-            fill: white !important;
-        }
-    </style>
-""")
+# Inject consolidated MMForge styling
+inject_custom_css()
 
 
 # ============================================================================
@@ -351,13 +283,14 @@ def display_results():
         st.info("No processed samples yet. Process samples to see results.")
         return
 
-    # Sample selector dropdown
     sample_names = list(processed.keys())
     current = get_current_sample()
 
     if current not in sample_names:
         current = sample_names[0]
         set_current_sample(current)
+
+    cal_result = get_calibration_result()
 
     # View mode toggle - add Compare Samples option if multiple samples
     view_options = ["4x4 Grid", "Selected Elements"]
@@ -371,15 +304,9 @@ def display_results():
         key="view_mode_radio"
     )
 
-    cal_result = get_calibration_result()
-
     if view_mode == "Compare Samples":
         # Multi-sample comparison mode
         st.markdown("**Select samples to compare:**")
-
-        # Initialize comparison selection if needed
-        if 'comparison_samples' not in st.session_state:
-            st.session_state['comparison_samples'] = []
 
         # Sample selection checkboxes for comparison
         col1, col2 = st.columns(2)
@@ -422,7 +349,7 @@ def display_results():
             st.info("Select samples above to compare")
 
     else:
-        # Single sample view modes
+        # Single sample view modes - Select Sample FIRST
         selected_sample = st.selectbox(
             "Select Sample",
             sample_names,
@@ -585,7 +512,7 @@ def main():
 
     st.success("Calibrated - Ready to process samples")
 
-    st.markdown("---")
+    soft_divider()
 
     # -------------------------------------------------
     # Sample Selection Section
@@ -610,13 +537,13 @@ def main():
             st.caption("Set the data directory in Configuration page first.")
 
         # Display sample checkboxes
-        st.markdown("---")
+        soft_divider()
         display_sample_checkboxes()
 
     # -------------------------------------------------
     # Process Samples Section
     # -------------------------------------------------
-    st.markdown("---")
+    soft_divider()
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
@@ -673,7 +600,7 @@ def main():
     # -------------------------------------------------
     # Export Section
     # -------------------------------------------------
-    st.markdown("---")
+    soft_divider()
     st.subheader("Export")
 
     col1, col2 = st.columns(2)

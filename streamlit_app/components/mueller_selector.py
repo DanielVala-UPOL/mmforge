@@ -11,6 +11,12 @@ Author: Daniel Vala
 
 import streamlit as st
 from typing import List, Tuple
+import sys
+from pathlib import Path
+
+# Add parent directory for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.styling import soft_divider
 
 
 # ============================================================================
@@ -63,7 +69,7 @@ def mueller_element_selector(
                     st.session_state[f"{key}_{i}_{j}"] = True
             st.rerun()
 
-    st.markdown("---")
+    soft_divider()
 
     selected = []
 

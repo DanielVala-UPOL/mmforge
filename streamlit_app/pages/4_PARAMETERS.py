@@ -45,6 +45,7 @@ from utils.session_state import (
     add_lu_chipman_result,
     get_calibration_result,
 )
+from utils.styling import inject_custom_css, soft_divider
 
 # ECM imports
 from ecm.postprocessing import lu_chipman_decomposition
@@ -60,77 +61,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom page width (~1.3x default centered = 61rem)
-st.html("""
-    <style>
-        .stMainBlockContainer {
-            max-width: 61rem;
-        }
-    </style>
-""")
-
-# MMForge primary color theming
-st.html("""
-    <style>
-        /* Primary color for interactive elements */
-        .stSlider > div > div > div > div {
-            background-color: #FF1F5B !important;
-        }
-        .stProgress > div > div > div > div {
-            background-color: #FF1F5B !important;
-        }
-        .stCheckbox > label > div[data-checked="true"] {
-            background-color: #FF1F5B !important;
-            border-color: #FF1F5B !important;
-        }
-
-        /* Primary buttons */
-        .stButton > button[kind="primary"] {
-            background-color: #FF1F5B !important;
-            border-color: #FF1F5B !important;
-            color: white !important;
-        }
-        .stButton > button[kind="primary"]:hover {
-            background-color: #d91a4e !important;
-            border-color: #d91a4e !important;
-            color: white !important;
-        }
-
-        /* Message colors */
-        .stSuccess {
-            background-color: rgba(86, 211, 154, 0.1) !important;
-            border-left-color: #56D39A !important;
-        }
-        .stWarning {
-            background-color: rgba(232, 195, 74, 0.1) !important;
-            border-left-color: #E8C34A !important;
-        }
-        .stInfo {
-            background-color: rgba(12, 138, 179, 0.1) !important;
-            border-left-color: #0C8AB3 !important;
-        }
-
-        /* Sidebar active page indicator */
-        [data-testid="stSidebarNav"] li[aria-selected="true"] {
-            background-color: rgba(255, 31, 91, 0.1) !important;
-            border-left: 3px solid #FF1F5B !important;
-        }
-
-        /* Expander headers with brand color */
-        [data-testid="stExpander"] > details > summary {
-            background-color: #FF1F5B !important;
-            color: white !important;
-            border-radius: 4px;
-            padding: 0.5rem 1rem;
-        }
-        [data-testid="stExpander"] > details > summary:hover {
-            background-color: #d91a4e !important;
-        }
-        [data-testid="stExpander"] > details > summary svg {
-            fill: white !important;
-        }
-    </style>
-""")
+# Inject consolidated MMForge styling
+inject_custom_css()
 
 
 # ============================================================================
@@ -281,8 +213,49 @@ def display_decomposed_matrices():
         key="decomp_matrix_view_mode"
     )
 
-    # Matrix selection tabs (order: Diattenuator → Depolarizer → Retarder)
-    matrix_tabs = st.tabs(["M_D (Diattenuator)", "M_Δ (Depolarizer)", "M_R (Retarder)"])
+    # --- SAMPLE SELECTION (OUTSIDE tabs, shared across all) ---
+    if view_mode == "Compare Samples":
+        # Multi-sample comparison mode - checkboxes
+        st.markdown("**Select samples to compare:**")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Select All", key="decomp_matrix_compare_select_all", use_container_width=True):
+                for name in sample_names:
+                    st.session_state[f"decomp_matrix_compare_cb_{name}"] = True
+                st.rerun()
+        with col2:
+            if st.button("Clear All", key="decomp_matrix_compare_clear_all", use_container_width=True):
+                for name in sample_names:
+                    st.session_state[f"decomp_matrix_compare_cb_{name}"] = False
+                st.rerun()
+
+        selected_for_compare = []
+        cols = st.columns(min(3, len(sample_names)))
+        for idx, name in enumerate(sample_names):
+            with cols[idx % len(cols)]:
+                if st.checkbox(name, key=f"decomp_matrix_compare_cb_{name}"):
+                    selected_for_compare.append(name)
+
+    else:
+        # Single sample view modes - dropdown (shared key for all tabs)
+        current = st.session_state.get('decomp_current_sample')
+        if current not in sample_names:
+            current = sample_names[0]
+            st.session_state['decomp_current_sample'] = current
+
+        selected_sample = st.selectbox(
+            "Select Sample",
+            sample_names,
+            index=sample_names.index(current) if current in sample_names else 0,
+            key="decomp_matrix_sample_selector"
+        )
+
+        if selected_sample != current:
+            st.session_state['decomp_current_sample'] = selected_sample
+
+    # --- MATRIX TABS (only plots, no sample selection inside) ---
+    matrix_tabs = st.tabs(["MM of Diattenuator", "MM of Depolarizer", "MM of Retarder"])
 
     matrix_keys = ['M_D', 'M_Delta', 'M_R']
     matrix_names = ['M<sub>D</sub>', 'M<sub>Δ</sub>', 'M<sub>R</sub>']
@@ -293,36 +266,12 @@ def display_decomposed_matrices():
             matrix_name = matrix_names[tab_idx]
 
             if view_mode == "Compare Samples":
-                # Multi-sample comparison mode
-                st.markdown("**Select samples to compare:**")
-
-                # Sample selection checkboxes for comparison
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("Select All", key=f"matrix_compare_select_{matrix_key}", use_container_width=True):
-                        for name in sample_names:
-                            st.session_state[f"matrix_compare_cb_{matrix_key}_{name}"] = True
-                        st.rerun()
-                with col2:
-                    if st.button("Clear All", key=f"matrix_compare_clear_{matrix_key}", use_container_width=True):
-                        for name in sample_names:
-                            st.session_state[f"matrix_compare_cb_{matrix_key}_{name}"] = False
-                        st.rerun()
-
-                selected_for_compare = []
-                cols = st.columns(min(3, len(sample_names)))
-                for idx, name in enumerate(sample_names):
-                    with cols[idx % len(cols)]:
-                        if st.checkbox(name, key=f"matrix_compare_cb_{matrix_key}_{name}"):
-                            selected_for_compare.append(name)
-
                 if len(selected_for_compare) >= 2:
                     # Build samples dictionary for comparison plot
                     samples_dict = {}
                     for name in selected_for_compare:
                         result = lc_results[name]
                         M = getattr(result, matrix_key)
-                        # For comparison, m00 is None since decomposed matrices don't have unnormalized transmission
                         samples_dict[name] = (M, None)
 
                     fig = create_mueller_comparison_plot(
@@ -338,22 +287,7 @@ def display_decomposed_matrices():
                     st.info("Select samples above to compare")
 
             else:
-                # Single sample view modes
-                current = st.session_state.get('decomp_current_sample')
-                if current not in sample_names:
-                    current = sample_names[0]
-                    st.session_state['decomp_current_sample'] = current
-
-                selected_sample = st.selectbox(
-                    "Select Sample",
-                    sample_names,
-                    index=sample_names.index(current) if current in sample_names else 0,
-                    key=f"matrix_sample_selector_{matrix_key}"
-                )
-
-                if selected_sample != current:
-                    st.session_state['decomp_current_sample'] = selected_sample
-
+                # Single sample view modes - use the shared selected_sample
                 result = lc_results[selected_sample]
                 M = getattr(result, matrix_key)
 
@@ -362,7 +296,7 @@ def display_decomposed_matrices():
                         M,
                         wavelengths,
                         title=f"{matrix_name} - {selected_sample}",
-                        m00=None  # Decomposed matrices don't have unnormalized M00
+                        m00=None
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -432,10 +366,10 @@ def display_parameter_plots():
                 if st.checkbox(name, key=f"param_cb_{name}", value=True):
                     selected.append(name)
 
-        st.markdown("---")
+        soft_divider()
 
     # Parameter tabs (now use unified `selected` list)
-    param_tabs = st.tabs(["Diattenuation (D)", "Depolarization Index (DI)", "Retardance (R)", "Fast Axis (ν, χ)"])
+    param_tabs = st.tabs(["Diattenuation (D)", "Depolarization Index (DI)", "Retardance (R)", "Eigenmodes"])
 
     with param_tabs[0]:  # Diattenuation
         if show_comparison and selected:
@@ -494,7 +428,7 @@ def display_parameter_plots():
         else:
             st.info("Select at least one sample above to display")
 
-    with param_tabs[3]:  # Fast Axis (ν, χ)
+    with param_tabs[3]:  # Eigenmodes
         # Unit selector (degrees or radians only - no waves for angles)
         axis_unit = st.radio(
             "Y-axis unit",
@@ -722,14 +656,14 @@ def main():
     st.title("Parameters Extraction")
 
     st.markdown("""
-    Perform **Lu-Chipman polar decomposition** of Mueller matrices to extract physical parameters:
-    - **Diattenuation (D)**: Differential attenuation of polarization states [0, 1]
-    - **Depolarization Index (DI)**: Measure of polarization preservation [0, 1]
-    - **Retardance (R)**: Phase shift between polarization components
-    - **Fast-axis angles (ν, χ)**: Orientation of optical axes
+    Perform **Lu-Chipman polar decomposition** of Mueller matrices to analyze three fundamental polarization effects:
+    - **Diattenuation (D)**: Differential attenuation of orthogonal polarization components (eigenmodes).
+    - **Depolarization Index (DI)**: Represents a reduction in the degree of light polarization: DI = 1 for non-depolarizing, DI < 1 for partially depolarizing, and DI = 0 for totally depolarizing samples.
+    - **Retardance (R)**: Phase difference between the (fast and slow) eigenmodes.
+    - **Eigenmode characteristics (ν, χ)**: Fast axis orientation and ellipticity of the polarization ellipse.
     """)
 
-    st.markdown("---")
+    soft_divider()
 
     # -------------------------------------------------
     # Prerequisites Check
@@ -756,7 +690,7 @@ def main():
     # -------------------------------------------------
     # Run Decomposition Button
     # -------------------------------------------------
-    st.markdown("---")
+    soft_divider()
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
@@ -824,7 +758,7 @@ def main():
     # -------------------------------------------------
     # Export Section
     # -------------------------------------------------
-    st.markdown("---")
+    soft_divider()
     st.subheader("Export")
 
     col1, col2 = st.columns(2)

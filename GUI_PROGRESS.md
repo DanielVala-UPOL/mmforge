@@ -656,6 +656,126 @@ Based on user feedback, the following changes were made:
 
 ---
 
+### Phase 6.5: Design & UX Polish - COMPLETED
+
+Based on professional design review to reduce visual fatigue and improve code maintainability.
+
+#### 1. Consolidated CSS Utility ✓
+- [x] Created new `utils/styling.py` with all shared CSS
+- [x] Single `inject_custom_css()` function replaces ~60 lines of inline CSS per page
+- [x] ~360 lines of duplicated CSS removed from page files
+- [x] Color constants defined: PRIMARY_COLOR, SECONDARY_COLOR, etc.
+
+#### 2. Color Scheme Refinement ✓
+- [x] Introduced `#2D3E50` (slate blue) as secondary/structural color
+- [x] Expander headers: `#FF1F5B` → `#2D3E50` (reduce magenta overuse)
+- [x] Sidebar active indicator: `#FF1F5B` → `#2D3E50`
+- [x] Workflow boxes: `rgba(255,31,91,0.15)` → `rgba(45,62,80,0.08)`
+- [x] Primary buttons KEPT at `#FF1F5B` (brand recognition)
+- [x] Sliders/checkboxes KEPT at `#FF1F5B`
+
+#### 3. Homepage Title Changed ✓
+- [x] Changed from `st.title("MMForge")` to `st.markdown("### Your Mueller Matrix Workbench")`
+- [x] Tagline now serves as the main header alongside logo
+
+#### 4. Enhanced Plotly Figure Styling ✓
+- [x] Updated `apply_common_styling()` function in `plots_plotly.py`
+- [x] Cleaner backgrounds (`paper_bgcolor='white'`, `plot_bgcolor='white'`)
+- [x] Refined margins and axis styling
+- [x] Better hover label styling with `#2D3E50` border
+- [x] Consistent font family (Arial, sans-serif)
+
+#### 5. Additional CSS Improvements ✓
+- [x] Secondary button styling (gray background, slate hover)
+- [x] Form input focus states with slate border/shadow
+- [x] Dataframe header styling with slate background
+
+**Files created (Phase 6.5):**
+- `streamlit_app/utils/styling.py` - NEW centralized CSS utility
+
+**Files modified (Phase 6.5):**
+- `streamlit_app/HOME.py` - Removed inline CSS, new title, updated workflow boxes
+- `streamlit_app/pages/1_CONFIGURATION.py` - Removed inline CSS, added import
+- `streamlit_app/pages/2_CALIBRATION.py` - Removed inline CSS, added import
+- `streamlit_app/pages/3_PROCESSING.py` - Removed inline CSS, added import
+- `streamlit_app/pages/4_PARAMETERS.py` - Removed inline CSS, added import
+- `streamlit_app/pages/5_ADVANCED.py` - Removed inline CSS, added import
+- `streamlit_app/components/plots_plotly.py` - Enhanced apply_common_styling()
+
+---
+
+### Phase 6.6: UI Polish & Layout Fixes - COMPLETED
+
+Minor UI polish and layout fixes from UX review.
+
+#### 1. Calibration Page Fixes ✓
+- [x] **Added spacing** after Run Calibration button section
+- [x] **Removed redundant stats** (Wavelengths, Range, Mean Quality) below page title
+  - These were duplicated in the Quality Summary expander
+- [x] **Quality Breakdown chart** - Reversed order (Excellent at top, Poor at bottom)
+
+#### 2. Figure Improvements ✓
+- [x] **Mueller matrix x-axis label** - Moved lower (`y=-0.10`) to avoid tick label overlap
+- [x] **Legend positioning** - Default placement above plot (`y=1.02`) to avoid overlaps
+
+#### 3. Parameters Page Tabs ✓
+- [x] **Larger tab fonts** - Added CSS for 1.1rem font size on tabs
+- [x] **Simplified tab labels** - Using Unicode subscript-style characters (Mᴅ, M∆, Mᴿ)
+
+#### 4. Sidebar Logo ✓
+- [x] **Logo at top** - MMForge logo now displayed above Status section in sidebar
+
+#### 5. Home Page Tagline ✓
+- [x] **Larger tagline** - Changed from `###` to `##` for bigger font size
+
+**Files modified (Phase 6.6):**
+- `streamlit_app/components/plots_plotly.py` - Chart order, x-axis label position, legend position
+- `streamlit_app/pages/2_CALIBRATION.py` - Spacing, removed redundant stats
+- `streamlit_app/utils/styling.py` - Tab font CSS
+- `streamlit_app/pages/4_PARAMETERS.py` - Tab labels
+- `streamlit_app/components/sidebar.py` - Logo at top
+- `streamlit_app/HOME.py` - Larger tagline
+
+---
+
+### Phase 6.7: UI Polish & Layout Fixes - COMPLETED
+
+Additional UI polish based on visual review.
+
+#### 1. Sidebar Logo Position ✓
+- [x] Logo now appears ABOVE navigation links using CSS background-image injection
+- [x] SVG logo embedded as base64 data URI in `utils/styling.py`
+- [x] Removed `st.image()` call from `sidebar.py`
+
+#### 2. Range Slider Track Color ✓
+- [x] Updated CSS to style slider track segments separately
+- [x] Track outside selected range now styled differently
+
+#### 3. Figure Margins & X-Axis Label ✓
+- [x] Increased bottom margin (`b=80`) for x-axis label visibility
+- [x] Increased top margin (`t=80`) for legend clearance
+- [x] Adjusted x-axis label position from `y=-0.10` to `y=-0.06`
+
+#### 4. Decomposed Matrix Tab Labels ✓
+- [x] Renamed tabs from Unicode subscripts to clear text:
+  - "MM of Diattenuator"
+  - "MM of Depolarizer"
+  - "MM of Retarder"
+
+#### 5. Eigenmodes Renaming ✓
+- [x] "Fast Axis (ν, χ)" tab renamed to "Eigenmodes"
+- [x] Figure titles changed:
+  - `create_fast_axis_plot()`: "Fast Axis & Ellipticity" → "Eigenmodes"
+  - `create_fast_axis_comparison_plot()`: "Fast Axis Comparison" → "Eigenmodes Comparison"
+
+**Files modified (Phase 6.7):**
+- `streamlit_app/utils/styling.py` - Sidebar logo CSS, slider track CSS
+- `streamlit_app/components/plots_plotly.py` - Margins, x-axis label position, eigenmodes titles
+- `streamlit_app/pages/4_PARAMETERS.py` - Tab labels (MM of..., Eigenmodes)
+- `streamlit_app/components/sidebar.py` - Removed st.image logo code
+
+---
+
 ## WHAT'S NEXT: Phase 7 - Testing & Documentation
 
 #### Remaining Optional Items (Low Priority)

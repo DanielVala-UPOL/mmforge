@@ -36,6 +36,7 @@ from utils.session_state import (
     set_config,
     get_config
 )
+from utils.styling import inject_custom_css, soft_divider
 
 # ECM imports
 from ecm.config import ECMConfig
@@ -54,77 +55,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom page width (~1.3x default centered = 61rem)
-st.html("""
-    <style>
-        .stMainBlockContainer {
-            max-width: 61rem;
-        }
-    </style>
-""")
-
-# MMForge primary color theming
-st.html("""
-    <style>
-        /* Primary color for interactive elements */
-        .stSlider > div > div > div > div {
-            background-color: #FF1F5B !important;
-        }
-        .stProgress > div > div > div > div {
-            background-color: #FF1F5B !important;
-        }
-        .stCheckbox > label > div[data-checked="true"] {
-            background-color: #FF1F5B !important;
-            border-color: #FF1F5B !important;
-        }
-
-        /* Primary buttons */
-        .stButton > button[kind="primary"] {
-            background-color: #FF1F5B !important;
-            border-color: #FF1F5B !important;
-            color: white !important;
-        }
-        .stButton > button[kind="primary"]:hover {
-            background-color: #d91a4e !important;
-            border-color: #d91a4e !important;
-            color: white !important;
-        }
-
-        /* Message colors */
-        .stSuccess {
-            background-color: rgba(86, 211, 154, 0.1) !important;
-            border-left-color: #56D39A !important;
-        }
-        .stWarning {
-            background-color: rgba(232, 195, 74, 0.1) !important;
-            border-left-color: #E8C34A !important;
-        }
-        .stInfo {
-            background-color: rgba(12, 138, 179, 0.1) !important;
-            border-left-color: #0C8AB3 !important;
-        }
-
-        /* Sidebar active page indicator */
-        [data-testid="stSidebarNav"] li[aria-selected="true"] {
-            background-color: rgba(255, 31, 91, 0.1) !important;
-            border-left: 3px solid #FF1F5B !important;
-        }
-
-        /* Expander headers with brand color */
-        [data-testid="stExpander"] > details > summary {
-            background-color: #FF1F5B !important;
-            color: white !important;
-            border-radius: 4px;
-            padding: 0.5rem 1rem;
-        }
-        [data-testid="stExpander"] > details > summary:hover {
-            background-color: #d91a4e !important;
-        }
-        [data-testid="stExpander"] > details > summary svg {
-            fill: white !important;
-        }
-    </style>
-""")
+# Inject consolidated MMForge styling
+inject_custom_css()
 
 
 # ============================================================================
@@ -192,7 +124,7 @@ def discover_and_display_files():
     cfg = build_config_from_session()
 
     if cfg.paths.data_dir is None:
-        st.error("Data directory not set. Go to **Configuration** page and enter the path to your calibration data folder.")
+        st.error("Data directory not set. Go to **CONFIGURATION** page and enter the path to your calibration data folder.")
         return None
 
     try:
@@ -207,14 +139,14 @@ def discover_and_display_files():
 
         return cal_files
 
-    except FileNotFoundError as e:
-        st.error(f"File discovery failed: {e}. Check that the data directory contains the required calibration files (DARK, ST, P0, P45, FP1).")
-        return None
+    #except FileNotFoundError as e:
+    #    st.error(f"File discovery failed. Check that the data directory contains the required calibration files (DARK, ST, P0, P45, FP1). Error: {e}")
+    #    return None
     except ValueError as e:
-        st.error(f"Multiple matching files found: {e}. Ensure each calibration type has only one .bin file in the directory.")
+        st.error(f"Multiple matching files found. Ensure each calibration type has only one .bin file in the directory. Error: {e}")
         return None
     except Exception as e:
-        st.error(f"Unexpected error during file discovery: {e}")
+        st.error(f"Unexpected error during file discovery:{e}")
         return None
 
 
@@ -238,7 +170,7 @@ def display_discovered_files(cal_files):
     # Display simple status message
     if required_found == required_total:
         if fp2_found:
-            st.success("Found all calibration files.")
+            st.success("Found all calibration files. FP2 included.")
         else:
             st.success("Found all calibration files. FP2 not included (optional).")
     else:
@@ -402,28 +334,6 @@ def main():
     st.title("Calibration")
 
     # -------------------------------------------------
-    # Current Status (if calibrated) - removed FP2
-    # -------------------------------------------------
-    if is_calibrated():
-        st.success("Calibrated")
-        cal_info = get_calibration_info()
-        if cal_info:
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Wavelengths", cal_info.get('n_wavelengths', 'N/A'))
-            with col2:
-                wl_min = cal_info.get('wl_min')
-                wl_max = cal_info.get('wl_max')
-                if wl_min and wl_max:
-                    st.metric("Range", f"{wl_min:.0f} - {wl_max:.0f} nm")
-            with col3:
-                mean_ratio = cal_info.get('mean_ratio')
-                if mean_ratio:
-                    st.metric("Mean Quality", f"{mean_ratio:.2e}")
-
-        st.markdown("---")
-
-    # -------------------------------------------------
     # Calibration Files Section - full width file list
     # -------------------------------------------------
     with st.expander("Calibration Files", expanded=not is_calibrated()):
@@ -446,7 +356,7 @@ def main():
     # -------------------------------------------------
     # Run Calibration Section - centered wider button
     # -------------------------------------------------
-    st.markdown("---")
+    soft_divider()
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
@@ -470,6 +380,9 @@ def main():
 
     if run_disabled:
         st.caption("Click 'Discover Files' first to find calibration files")
+
+    # Add vertical spacing after Run Calibration section
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # Re-calibration confirmation dialog
     @st.dialog("Start New Calibration?")
@@ -510,7 +423,7 @@ def main():
     # -------------------------------------------------
     # Save/Load Calibration Section (moved to bottom)
     # -------------------------------------------------
-    st.markdown("---")
+    soft_divider()
     st.subheader("Save / Load Calibration")
 
     col1, col2 = st.columns(2)
