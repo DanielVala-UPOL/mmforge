@@ -128,6 +128,17 @@ def main():
         color: #666;
         margin: 0;
     }
+    /* Tab styling for gentle color coding and full width distribution */
+    .stTabs [data-baseweb="tabs"] [aria-selected="true"] {
+        border-bottom-color: #FF6B9D !important;
+    }
+    .stTabs [data-baseweb="tabs"] {
+        width: 100%;
+    }
+    .stTabs [data-baseweb="tabs"] button[role="tab"] {
+        flex: 1;
+        text-align: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -175,90 +186,116 @@ def main():
     # -------------------------------------------------
     st.space(size="small")
 
-    with st.expander("1: Configure", expanded=False):
+    # Use tabs for workflow sections
+    tab1, tab2, tab3, tab4 = st.tabs(["CONFIGURE", "2. CALIBRATE", "3. PROCESS", "4. PARAMETERS"])
+
+    with tab1:
+        st.markdown("**Begin by configuring the application to suit your experimental setup.**")
+        
+        st.markdown("**Define Data Paths**")
         st.markdown("""
-        **Begin by configuring the application to suit your experimental setup.**
+- Specify the data directory containing calibration and sample measurements.
+- The :red-background[directory **must** contain] all calibration samples and measurements.
+        """)
 
-        **Define :blue-background[**Data Paths]**
-        - Specify the data directory containing calibration and sample measurements.
-        - The directory *must* contain all calibration samples and measurements.
-
-        **Specify :blue-background[Wavelength Settings]**
-        - Set the wavelength range. The maximum range is determined by the source lamp.
-        - Both calibration and sample processing will use this range.
-
-        **Adjust :blue-background[Acquisition Settings]**
-        - Define the number of discrete steps per one rotation cycle of the compensator in the Polarization State Generator (PSG).
-        - This **must** match the hardware settings used during measurements.
-        - The default value (96 positions) provides good accuracy while maintaining reasonable measurement time; however, any value >16 can be used.
-    """)
-
-    with st.expander("2: Calibrate", expanded=False):
+        st.markdown("**Specify Wavelength Settings**")
         st.markdown("""
-        **Continue with calibrating the polarimeter using the ECM.**
-        - Ensure all required calibration samples are present by clicking the :blue-background[Discover Files] button. The application automatically searches for required samples by filename patterns.
+- Set the wavelength range. The maximum range is determined by the source lamp.
+- Both calibration and sample processing will use this range.
+        """)
 
-        **The following calibration samples and label patterns(*) are required:**
-        - Background (closed shutter): :blue-background[\\_DARK_ECM\\_]
-        - Air (empty straight-through measurement): :blue-background[\\_ST_ECM\\_]
-        - Linear polarizer at 0°: :blue-background[\\_P0_ECM\\_]
-        - Linear polarizer at 45°: :blue-background[\\_P45_ECM\\_]
-        - Fresnel prism FP1 at 90°: :blue-background[\\_RET90_FP1_ECM\\_]
-        - Fresnel prism FP2 at 45° (*recommended, not required*): :blue-background[\\_RET45_FP2_ECM\\_]
-        - (*) Before and after the underscore delimiters can be any string (e.g., sample ID, date, etc.); labels are case-sensitive.
-
-        **Hit :red-background[Run Calibration]**
-        - The application will process the calibration data and display eigenvalue metrics to assess the calibration quality.
-        - You may save the calibration results for future use *(not required)*.
-
-        **Tips:**
-        - You can check the calibration status in the :blue-background[sidebar].
-        - You may rerun the calibration at any time (e.g., after changing configuration settings) by hitting :red-background[Run Calibration] again.
-        - If you have previously saved calibration results, you may load them by specifying the data directory and clicking :blue-background[Load Saved Calibration] at the bottom of the page.
-    """)
-
-    with st.expander("3: Process", expanded=False):
+        st.markdown("**Select Calibration Mode**")
         st.markdown("""
-        **Now you are ready to process the samples and obtain their Mueller matrices.**
-        - Ensure all sample data files are within the specified directory (the same directory as the calibration samples).
+- Choose between Transmission, Reflection, or Combined mode.
+- Currently, only Transmission mode is supported; other modes will be available in future releases.
+        """)
+        st.info("""
+**Tutorial Data:**
+- You may select **Turorial Data** in **Calibration Mode** to learn the workflow without needing your own measurements.
+- This option loads example calibration data and sample measurements to demonstrate the application's features.
+- The Data Directory is automatically prefilled. Saving is not enabled.
+- You may still select the wavelength range.
+                """)
 
-        **Hit :blue-background[Discover Samples]**
-        - The application will search for sample measurement files.
-        - You can select which samples to process by checking the boxes next to their names.
-        - Once you have selected the samples, click :red-background[Process Selected] to start processing.
-        - The application will process the selected samples and display the results.
-        - You can save the processed results for future use *(not required)*.
-
-        **Tips:**
-        - You can process samples multiple times by selecting them and hitting :red-background[Process Selected] again.
-        - The Mueller matrix plots offer a good degree of interactivity — hover over elements to see values, drag to zoom in, or toggle visibility of individual elements by clicking on the legend items.
-        - You can also select which elements to display using the checkboxes next to the plots.
-        - Selected samples can be compared side by side in the overlay figures.
-    """)
-
-    with st.expander("4: Parameter Extraction", expanded=False):
+    with tab2:
+        st.markdown("**Continue with calibrating the polarimeter using the ECM.**")
+        st.markdown("Ensure all required calibration samples are present by clicking the :blue-background[Discover Files] button. The application automatically searches for required samples by filename patterns.")
+        
+        st.markdown("**The following calibration samples and label patterns are required:**")
         st.markdown("""
-        **The raw Mueller matrices of the samples can be converted to fundamental polarization quantities.**
-        - Here, you can select which samples you want to post-process.
+| Sample | Label Pattern* | Status |
+|--------|---------------|--------|
+| Background (closed shutter) | :orange-background[\\_DARK_ECM\\_] | **Required** |
+| Air (empty straight-through measurement) | :orange-background[\\_ST_ECM\\_] | **Required** |
+| Linear polarizer at 0° | :orange-background[\\_P0_ECM\\_] | **Required** |
+| Linear polarizer at 45° | :orange-background[\\_P45_ECM\\_] | **Required** |
+| Fresnel prism FP1 at 90° | :orange-background[\\_RET90_FP1_ECM\\_] | **Required** |
+| Fresnel prism FP2 at 45° | :orange-background[\\_RET45_FP2_ECM\\_] | Optional** |
+        """)
+        
+        st.caption("*Before and after the underscore delimiters can be any string (e.g., sample ID, date, etc.); labels are case-sensitive.")
+        st.caption("**Not required, but recommended for best results.")
+        
+        st.markdown("**Hit :red-background[Run Calibration]**")
+        st.markdown("""
+- The application will process the calibration data and display eigenvalue metrics to assess the calibration quality.
+- You may save the calibration results for future use *(not required)*.
+        """)
+        
+        st.info("""
+**Tips:**
+- Check calibration status in the sidebar
+- Rerun anytime after changing settings
+- Load saved calibration results at the bottom
+        """)
 
-        **Hit :red-background[Run Decomposition]**
-        - The application will perform the Lu–Chipman decomposition on the selected samples and display the extracted parameters.
-        - The parameters include diattenuation, retardance, depolarization, and eigenmode characteristics.
+    with tab3:
+        st.markdown("**Now you are ready to process the samples and obtain their Mueller matrices.**")
+        st.markdown("Ensure all sample data files are within the specified directory (the same directory as the calibration samples).")
+        
+        st.markdown("**Hit :blue-background[Discover Samples]**")
+        st.markdown("""
+- The application will search for sample measurement files.
+- You can select which samples to process by checking the boxes next to their names.
+- Once you have selected the samples, click :red-background[Process Selected] to start processing.
+- The application will process the selected samples and display the results.
+- You can save the processed results for future use *(not required)*.
+        """)
+        
+        st.info("""
+**Tips:**
+- Process samples multiple times
+- Hover over plots to see values
+- Drag to zoom in on specific areas
+- Compare samples side by side
+        """)
 
-        **Caution: The Lu–Chipman decomposition is useful for general analysis, but be aware of its limitations:**
-        - It assumes transmission geometry and may not be suitable for reflection-mode measurements.
-        - It assumes the sample can be represented as a specific sequence of ideal optical elements, which may not hold for all samples.
-        - It may not accurately capture complex interactions in highly scattering or anisotropic samples.
-        - Breakdowns can occur for samples with extreme polarimetric properties (e.g., near-perfect polarizers or retarders).
-        - Extracted parameters should be interpreted with caution, especially when the sample deviates significantly from the model assumptions.
-        - Always interpret the results within the context of your specific experimental setup and sample characteristics.
-
-        **Tips:**
-        - Explore the :blue-background[Summary Table] in the :red-background[Single Wavelengths] section for a quick comparison of key parameters across samples.
-        - You can run the decomposition multiple times by selecting samples and hitting :red-background[Run Decomposition] again.
-        - The parameter plots offer interactivity similar to the Mueller matrix plots.
-        - You may export the results.
-    """)
+    with tab4:
+        st.markdown("**The raw Mueller matrices of the samples can be converted to fundamental polarization quantities.**")
+        st.markdown("Here, you can select which samples you want to post-process.")
+        
+        st.markdown("**Hit :red-background[Run Decomposition]**")
+        st.markdown("""
+- The application will perform the Lu–Chipman decomposition on the selected samples and display the extracted parameters.
+- The parameters include diattenuation, retardance, depolarization, and eigenmode characteristics.
+        """)
+        
+        st.warning("""
+**⚠️  Important Limitations of Lu–Chipman Decomposition:**
+- Assumes transmission geometry (may not suit reflection-mode measurements)
+- Assumes samples can be represented as ideal optical element sequences
+- May not capture complex interactions in scattering or anisotropic samples
+- Breakdowns can occur for extreme polarimetric properties
+- Always interpret results within your experimental context
+        """)
+        
+        st.info("""
+**Tips:**
+- Use the Summary Table for quick parameter comparisons
+- Rerun decomposition anytime
+- Plots offer interactive features
+- Export results for external analysis
+        """)
 
 
 # ============================================================================

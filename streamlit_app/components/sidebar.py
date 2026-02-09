@@ -115,7 +115,7 @@ def render_sidebar():
             }
             </style>
             <div class="sidebar-version">
-                <strong>MMForge v1.0</strong><br>
+                <strong>MMForge v1.2</strong><br>
                 ECM-Calibration v6.5.5<br>
                 © 2026 Daniel Vala
             </div>

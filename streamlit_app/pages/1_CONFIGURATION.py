@@ -24,6 +24,13 @@ from utils.session_state import initialize_session_state
 from utils.styling import inject_custom_css
 
 
+def get_tutorial_data_path() -> Path:
+    """Get absolute path to bundled tutorial data."""
+    # Path relative to this file: pages/1_CONFIGURATION.py
+    # Tutorial data at: project_root/data/tutorial/
+    return Path(__file__).parent.parent.parent / "data" / "tutorial"
+
+
 # ============================================================================
 # PAGE CONFIGURATION
 # ============================================================================
@@ -60,27 +67,72 @@ def main():
     st.title("Configuration")
 
     # -------------------------------------------------
+    # Determine tutorial mode from current selectbox value
+    # (must be done before Data Paths renders to avoid stale state)
+    # -------------------------------------------------
+    current_mode = st.session_state.get('calibration_mode', 'Transmission')
+    tutorial_mode = (current_mode == "Tutorial Data")
+
+    # Update session state flags based on current mode
+    st.session_state['tutorial_mode'] = tutorial_mode
+    st.session_state['saving_disabled'] = tutorial_mode
+    if tutorial_mode:
+        st.session_state['data_dir_path'] = str(get_tutorial_data_path())
+    else:
+        # Reset data_dir_path if it was set to tutorial path (user switched away from Tutorial mode)
+        tutorial_path_str = str(get_tutorial_data_path())
+        if st.session_state.get('data_dir_path', '') == tutorial_path_str:
+            st.session_state['data_dir_path'] = ''
+
+    # -------------------------------------------------
     # Data Paths Section
     # -------------------------------------------------
     with st.expander("Data Paths", expanded=True):
-        st.markdown("Select the directories containing both your calibration and sampledata and where to save outputs.")
+        st.markdown("Select the directories containing both your calibration and sample data and where to save outputs.")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            data_dir = directory_selector(
-                label="Data Directory",
-                key="data_dir",
-                default_path="",
-                help_text="Directory containing calibration .bin files"
-            )
+            if tutorial_mode:
+                # Tutorial mode: show read-only path
+                st.markdown("**Data Directory**")
+                tutorial_path = get_tutorial_data_path()
+                st.text_input(
+                    "Path",
+                    value=str(tutorial_path),
+                    key="data_dir_tutorial_display",
+                    disabled=True,
+                    label_visibility="collapsed"
+                )
+                st.info("Using bundled tutorial data.")
+            else:
+                # Normal mode: editable input
+                data_dir = directory_selector(
+                    label="Data Directory",
+                    key="data_dir",
+                    default_path="",
+                    help_text="Directory containing calibration .bin files"
+                )
 
         with col2:
-            output_dir = directory_selector_compact(
-                label="Output Directory",
-                key="output_dir",
-                default_path=str(Path.cwd() / "calibration_output")
-            )
+            if tutorial_mode:
+                # Tutorial mode: show disabled output with warning
+                st.markdown("**Output Directory**")
+                st.text_input(
+                    "Path",
+                    value="(Saving disabled)",
+                    key="output_dir_tutorial_display",
+                    disabled=True,
+                    label_visibility="collapsed"
+                )
+                st.warning("Saving is disabled in Tutorial mode.")
+            else:
+                # Normal mode: editable input
+                output_dir = directory_selector_compact(
+                    label="Output Directory",
+                    key="output_dir",
+                    default_path=str(Path.cwd() / "calibration_output")
+                )
 
     # -------------------------------------------------
     # Wavelength and Acquisition Settings (side by side)
@@ -126,24 +178,22 @@ def main():
             st.session_state['wl_ref'] = 633.0
 
     with col2:
-        with st.expander("Acquisition Settings", expanded=True):
-            st.markdown("Configure data acquisition parameters.")
+        with st.expander("Calibration Mode", expanded=True):
+            st.markdown("Select the measurement configuration.")
 
-            n_positions = st.number_input(
-                "Angular Positions",
-                min_value=16,
-                max_value=256,
-                value=96,
-                step=1,
-                key="n_positions",
-                help="96 positions provides good accuracy while maintaining reasonable measurement time."
+            mode = st.selectbox(
+                "Mode",
+                options=["Transmission", "Reflection", "Combined", "Tutorial Data"],
+                index=0,
+                key="calibration_mode",
+                help="Transmission mode calibrates the straight-through configuration. Tutorial Data uses bundled example files."
             )
 
-            # Validation info for extreme values
-            if n_positions < 64:
-                st.info("Consider using more steps to avoid calibration instability.")
-            elif n_positions > 304:
-                st.info("Adding more than 304 steps will not increase precision considerably.")
+            # Display mode-specific messages (state already updated at top of main())
+            if mode == "Tutorial Data":
+                st.info("Using bundled tutorial data for learning and demonstration. Saving is disabled in this mode.")
+            elif mode != "Transmission":
+                st.warning("Reflection and Combined modes will be available in a future release. Please select Transmission mode for now.")
 
 
 # ============================================================================

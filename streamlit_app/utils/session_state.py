@@ -31,6 +31,12 @@ SESSION_KEYS = {
     'data_dir_path': '',               # Data directory path
     'output_dir_path': '',             # Output directory path
     'sample_dir_path': '',             # Sample directory path
+    # Calibration mode and auto-detected settings
+    'calibration_mode': 'Transmission',  # Transmission, Reflection, Combined, or Tutorial Data
+    'n_positions': None,               # Auto-detected from calibration files
+    # Tutorial mode flags
+    'tutorial_mode': False,            # True when using bundled tutorial data
+    'saving_disabled': False,          # True in tutorial mode (no persistence)
 }
 
 
