@@ -118,7 +118,7 @@ def calculate_quality_breakdown(eigenvalue_ratio: np.ndarray) -> dict:
 
 
 def discover_and_display_files():
-    """Discover calibration files and display results."""
+    """Discover calibration files, auto-detect rotator steps, and display results."""
     cfg = build_config_from_session()
 
     if cfg.paths.data_dir is None:
@@ -132,8 +132,23 @@ def discover_and_display_files():
         # Store in session state
         st.session_state['discovered_files'] = cal_files
 
-        # Display results
-        display_discovered_files(cal_files)
+        # Check if all required files found
+        if not display_discovered_files(cal_files):
+            return None
+
+        # Auto-detect rotator steps from file dimensions
+        n_positions = detect_rotator_steps(cal_files)
+
+        if n_positions is not None:
+            st.session_state['n_positions'] = n_positions
+
+            # Display combined success message
+            fp2_status = "FP2 included" if cal_files.ret_45 is not None else "FP2 not included (optional)"
+            #st.success(f"Found all calibration files. Detected {n_positions} rotator steps. {fp2_status}")
+            st.success(f"Found all calibration files. {fp2_status}")
+        else:
+            # Error already displayed by detect_rotator_steps
+            return None
 
         return cal_files
 
@@ -141,12 +156,16 @@ def discover_and_display_files():
         st.error(f"Multiple matching files found. Ensure each calibration type has only one .bin file in the directory. Error: {e}")
         return None
     except Exception as e:
-        st.error(f"Unexpected error during file discovery:{e}")
+        st.error(f"Unexpected error during file discovery: {e}")
         return None
 
 
-def display_discovered_files(cal_files):
-    """Display discovered files status as a simple message."""
+def display_discovered_files(cal_files) -> bool:
+    """
+    Display discovered files status.
+
+    Returns True if all required files found, False otherwise.
+    """
     file_info = [
         ("DARK", cal_files.dark, True),
         ("ST", cal_files.air, True),
@@ -160,21 +179,86 @@ def display_discovered_files(cal_files):
     required_found = sum(1 for _, path, req in file_info if req and path is not None)
     required_total = sum(1 for _, _, req in file_info if req)
     missing_required = [name for name, path, req in file_info if req and path is None]
-    fp2_found = cal_files.ret_45 is not None
 
-    # Display simple status message
-    if required_found == required_total:
-        if fp2_found:
-            st.success("Found all calibration files. FP2 included.")
-        else:
-            st.success("Found all calibration files. FP2 not included (optional).")
-    else:
+    # Display error if missing required files (success shown after auto-detect)
+    if required_found < required_total:
         missing_str = ", ".join(missing_required)
         st.error(f"Missing calibration files: **{missing_str}**. Found {required_found}/{required_total} required files. Check that all calibration .bin files are in the data directory.")
+        return False
+
+    return True
+
+
+def detect_rotator_steps(cal_files) -> int | None:
+    """
+    Auto-detect rotator steps from calibration file dimensions.
+
+    Binary files are float32 (4 bytes per value) with shape [n_angles, n_wavelengths].
+
+    Returns
+    -------
+    n_positions : int or None
+        Detected number of rotator steps, or None on error.
+    """
+    import os
+
+    # Spectrometer has 2048 wavelength channels
+    n_wavelengths = st.session_state.get('n_wavelengths', 2048)
+    bytes_per_value = 4  # float32
+
+    # Collect all discovered file paths (excluding None)
+    files_to_check = [
+        ("DARK", cal_files.dark),
+        ("ST", cal_files.air),
+        ("P0", cal_files.pol_0),
+        ("P45", cal_files.pol_45),
+        ("RET90_FP1", cal_files.ret_90),
+    ]
+    if cal_files.ret_45 is not None:
+        files_to_check.append(("RET45_FP2", cal_files.ret_45))
+
+    detected_steps = {}
+
+    for name, path in files_to_check:
+        if path is None:
+            continue
+        try:
+            file_size = os.path.getsize(path)
+            total_values = file_size // bytes_per_value
+
+            if total_values % n_wavelengths != 0:
+                st.error(f"File dimension error: {name} file size ({file_size} bytes) is not compatible with {n_wavelengths} wavelengths.")
+                return None
+
+            n_angles = total_values // n_wavelengths
+            detected_steps[name] = n_angles
+
+        except Exception as e:
+            st.error(f"Error reading {name} file: {e}")
+            return None
+
+    # Check consistency across all files
+    unique_steps = set(detected_steps.values())
+
+    if len(unique_steps) > 1:
+        mismatch_details = ", ".join([f"{name}: {steps}" for name, steps in detected_steps.items()])
+        st.error(f"Dimension mismatch across calibration files: {mismatch_details}. All files must have the same number of rotator steps.")
+        return None
+
+    if len(unique_steps) == 0:
+        st.error("No valid calibration files found to detect rotator steps.")
+        return None
+
+    return unique_steps.pop()
 
 
 def run_calibration_workflow():
     """Execute ECM calibration with progress display."""
+    # Check calibration mode
+    if st.session_state.get('calibration_mode', 'Transmission') != 'Transmission':
+        st.warning("Only Transmission mode is currently supported. Please select Transmission mode in Configuration.")
+        return
+
     cfg = build_config_from_session()
 
     # Initialize progress elements - centered and wider
@@ -425,26 +509,37 @@ def main():
 
     with col1:
         st.markdown("**Save Current Calibration**")
-        save_disabled = not is_calibrated()
+        tutorial_mode = st.session_state.get('tutorial_mode', False)
+        save_disabled = not is_calibrated() or tutorial_mode
+        if tutorial_mode:
+            save_help = "Saving is disabled in Tutorial mode"
+        elif not is_calibrated():
+            save_help = "Run calibration first to enable saving"
+        else:
+            save_help = None
         if st.button(
             "Save Calibration",
             use_container_width=True,
             disabled=save_disabled,
-            help="Run calibration first to enable saving" if save_disabled else None
+            help=save_help
         ):
             save_current_calibration()
 
     with col2:
         st.markdown("**Load Saved Calibration**")
+        tutorial_mode = st.session_state.get('tutorial_mode', False)
 
         # File path input
         cal_file_path = st.text_input(
             "Calibration file path (.npz)",
             key="load_cal_path",
-            placeholder="/path/to/calibration.npz"
+            placeholder="/path/to/calibration.npz",
+            disabled=tutorial_mode
         )
 
-        if cal_file_path:
+        if tutorial_mode:
+            st.caption("Loading is disabled in Tutorial mode.")
+        elif cal_file_path:
             if st.button("Load Selected", use_container_width=True):
                 load_calibration_from_file(cal_file_path)
 

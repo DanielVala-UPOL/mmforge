@@ -204,12 +204,18 @@ def main():
 - Both calibration and sample processing will use this range.
         """)
 
-        st.markdown("**Adjust Acquisition Settings**")
+        st.markdown("**Select Calibration Mode**")
         st.markdown("""
-- Define the number of discrete steps per one rotation cycle of the compensator in the Polarization State Generator (PSG).
-- This :red-background[**must** match] the hardware settings used during measurements.
-- The default value (96 positions) provides good accuracy while maintaining reasonable measurement time; however, any value >16 can be used.
+- Choose between Transmission, Reflection, or Combined mode.
+- Currently, only Transmission mode is supported; other modes will be available in future releases.
         """)
+        st.info("""
+**Tutorial Data:**
+- You may select **Turorial Data** in **Calibration Mode** to learn the workflow without needing your own measurements.
+- This option loads example calibration data and sample measurements to demonstrate the application's features.
+- The Data Directory is automatically prefilled. Saving is not enabled.
+- You may still select the wavelength range.
+                """)
 
     with tab2:
         st.markdown("**Continue with calibrating the polarimeter using the ECM.**")

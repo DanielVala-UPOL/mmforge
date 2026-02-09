@@ -604,13 +604,15 @@ def main():
 
     col1, col2 = st.columns(2)
 
-    export_disabled = not has_processed
+    tutorial_mode = st.session_state.get('tutorial_mode', False)
+    export_disabled = not has_processed or tutorial_mode
 
     with col1:
         if st.button(
             "Save Results (.npz)",
             use_container_width=True,
-            disabled=export_disabled
+            disabled=export_disabled,
+            help="Saving is disabled in Tutorial mode" if tutorial_mode else None
         ):
             save_results()
 
@@ -618,11 +620,14 @@ def main():
         if st.button(
             "Export Data (.csv)",
             use_container_width=True,
-            disabled=export_disabled
+            disabled=export_disabled,
+            help="Exporting is disabled in Tutorial mode" if tutorial_mode else None
         ):
             st.session_state['_show_csv_export'] = True
 
-    if export_disabled:
+    if tutorial_mode:
+        st.caption("Export is disabled in Tutorial mode")
+    elif export_disabled:
         st.caption("Process samples to enable export options")
 
     # Show CSV export dialog if requested
