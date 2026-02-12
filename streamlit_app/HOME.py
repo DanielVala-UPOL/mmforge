@@ -215,6 +215,7 @@ def main():
 - This option loads example calibration data and sample measurements to demonstrate the application's features.
 - The Data Directory is automatically prefilled. Saving is not enabled.
 - You may still select the wavelength range.
+                - Caution! The bundled tutorial data is designed for demonstration purposes and may not reflect real experimental conditions. Use it to familiarize yourself with the workflow, but always validate with your own measurements for actual analysis.
                 """)
 
     with tab2:
