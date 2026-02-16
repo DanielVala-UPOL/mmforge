@@ -97,7 +97,11 @@ def build_config_from_session():
 
     # Build from session state if no config stored
     cfg = ECMConfig()
-    data_dir = st.session_state.get('data_dir_path', '')
+    mode = st.session_state.get('calibration_mode', 'Transmission')
+    if mode == 'Reflection':
+        data_dir = st.session_state.get('reflection_dir_path', '')
+    else:
+        data_dir = st.session_state.get('data_dir_path', '')
     if data_dir:
         cfg.paths.data_dir = Path(data_dir)
 
@@ -113,8 +117,12 @@ def build_config_from_session():
 
 
 def discover_samples():
-    """Discover sample files in the data directory."""
-    data_dir = st.session_state.get('data_dir_path', '')
+    """Discover sample files in the data directory for the current mode."""
+    mode = st.session_state.get('calibration_mode', 'Transmission')
+    if mode == 'Reflection':
+        data_dir = st.session_state.get('reflection_dir_path', '')
+    else:
+        data_dir = st.session_state.get('data_dir_path', '')
     if not data_dir:
         st.error("Data directory not set. Go to **Configuration** page and set the data directory first.")
         return
