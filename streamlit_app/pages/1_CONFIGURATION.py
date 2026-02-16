@@ -88,13 +88,12 @@ def main():
     # Data Paths Section
     # -------------------------------------------------
     with st.expander("Data Paths", expanded=True):
-        st.markdown("Select the directories containing both your calibration and sample data and where to save outputs.")
+        st.markdown("Select the directories containing your calibration and sample data and where to save outputs.")
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if tutorial_mode:
-                # Tutorial mode: show read-only path
+        if tutorial_mode:
+            # Tutorial mode: show read-only paths
+            col1, col2 = st.columns(2)
+            with col1:
                 st.markdown("**Data Directory**")
                 tutorial_path = get_tutorial_data_path()
                 st.text_input(
@@ -105,18 +104,7 @@ def main():
                     label_visibility="collapsed"
                 )
                 st.info("Using bundled tutorial data.")
-            else:
-                # Normal mode: editable input
-                data_dir = directory_selector(
-                    label="Data Directory",
-                    key="data_dir",
-                    default_path="",
-                    help_text="Directory containing calibration .bin files"
-                )
-
-        with col2:
-            if tutorial_mode:
-                # Tutorial mode: show disabled output with warning
+            with col2:
                 st.markdown("**Output Directory**")
                 st.text_input(
                     "Path",
@@ -126,13 +114,61 @@ def main():
                     label_visibility="collapsed"
                 )
                 st.warning("Saving is disabled in Tutorial mode.")
-            else:
-                # Normal mode: editable input
-                output_dir = directory_selector_compact(
+
+        elif current_mode == "Transmission":
+            col1, col2 = st.columns(2)
+            with col1:
+                directory_selector(
+                    label="Transmission Data Directory",
+                    key="data_dir",
+                    default_path="",
+                    help_text="Directory containing transmission calibration and sample .bin files"
+                )
+            with col2:
+                directory_selector_compact(
                     label="Output Directory",
                     key="output_dir",
                     default_path=str(Path.cwd() / "calibration_output")
                 )
+
+        elif current_mode == "Reflection":
+            col1, col2 = st.columns(2)
+            with col1:
+                directory_selector(
+                    label="Reflection Data Directory",
+                    key="reflection_dir",
+                    default_path="",
+                    help_text="Directory containing reflection calibration and sample .bin files"
+                )
+            with col2:
+                directory_selector_compact(
+                    label="Output Directory",
+                    key="output_dir",
+                    default_path=str(Path.cwd() / "calibration_output")
+                )
+
+        elif current_mode == "Combined":
+            col1, col2 = st.columns(2)
+            with col1:
+                directory_selector(
+                    label="Transmission Data Directory",
+                    key="data_dir",
+                    default_path="",
+                    help_text="Directory containing transmission calibration and sample .bin files"
+                )
+            with col2:
+                directory_selector(
+                    label="Reflection Data Directory",
+                    key="reflection_dir",
+                    default_path="",
+                    help_text="Directory containing reflection calibration and sample .bin files"
+                )
+            # Output directory on its own row for Combined mode
+            directory_selector_compact(
+                label="Output Directory",
+                key="output_dir",
+                default_path=str(Path.cwd() / "calibration_output")
+            )
 
     # -------------------------------------------------
     # Wavelength and Acquisition Settings (side by side)

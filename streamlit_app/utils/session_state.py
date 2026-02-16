@@ -31,6 +31,7 @@ SESSION_KEYS = {
     'data_dir_path': '',               # Data directory path
     'output_dir_path': '',             # Output directory path
     'sample_dir_path': '',             # Sample directory path
+    'reflection_dir_path': '',         # Reflection data directory (calibration + samples)
     # Calibration mode and auto-detected settings
     'calibration_mode': 'Transmission',  # Transmission, Reflection, Combined, or Tutorial Data
     'n_positions': None,               # Auto-detected from calibration files

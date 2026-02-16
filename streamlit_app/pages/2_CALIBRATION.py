@@ -82,7 +82,12 @@ def build_config_from_session() -> ECMConfig:
     Maps UI configuration values to the ECMConfig dataclass structure.
     """
     # Get values from session state with defaults
-    data_dir = st.session_state.get('data_dir_path', '')
+    mode = st.session_state.get('calibration_mode', 'Transmission')
+    if mode == 'Reflection':
+        data_dir = st.session_state.get('reflection_dir_path', '')
+    else:
+        # Transmission, Tutorial Data, and Combined (transmission pass)
+        data_dir = st.session_state.get('data_dir_path', '')
     output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'calibration_output'))
     wl_min = st.session_state.get('wl_min', 400)
     wl_max = st.session_state.get('wl_max', 1000)
