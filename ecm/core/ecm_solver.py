@@ -372,3 +372,108 @@ def solve_A(
     )
 
     return A, diagnostics
+
+
+# =============================================================================
+# PSA MATRIX (A) SOLVER — REFLECTION MODE
+# =============================================================================
+
+def solve_A_reflection(
+    W: ndarray,
+    B_ref: ndarray,
+    M_ref: ndarray
+) -> Tuple[ndarray, ADiagnostics]:
+    """
+    Compute PSA modulation matrix A from W, reference intensity matrix,
+    and reference reflector Mueller matrix.
+
+    For the reflection reference measurement where M = M_ref (known reflector):
+        B_ref = A @ M_ref @ W
+        A = B_ref @ (M_ref @ W)^(-1)
+
+    Parameters
+    ----------
+    W : ndarray, shape (4, 4)
+        PSG modulation matrix from solve_W().
+
+    B_ref : ndarray, shape (4, 4)
+        Reference reflector intensity matrix.
+
+    M_ref : ndarray, shape (4, 4)
+        Known Mueller matrix of the reference reflector.
+
+    Returns
+    -------
+    A : ndarray, shape (4, 4)
+        PSA modulation matrix. Normalized so A[0,0] > 0.
+
+    diagnostics : ADiagnostics
+        Condition number and determinant information.
+
+    Raises
+    ------
+    ValueError
+        If M_ref @ W is singular (condition number > 1e10).
+
+    Examples
+    --------
+    >>> from ecm.utils.mueller_matrices import reflector
+    >>> M_ref = reflector(psi=0.5, delta=1.2, tau=0.4)
+    >>> W, _ = solve_W(K)
+    >>> A, diag = solve_A_reflection(W, B_ref, M_ref)
+    >>> print(f"A condition number: {diag.condition_number:.2f}")
+    """
+    # -------------------------------------------------------------------------
+    # Input validation
+    # -------------------------------------------------------------------------
+    if W.shape != (4, 4):
+        raise ValueError(f"W must be 4×4, got {W.shape}")
+
+    if B_ref.shape != (4, 4):
+        raise ValueError(f"B_ref must be 4×4, got {B_ref.shape}")
+
+    if M_ref.shape != (4, 4):
+        raise ValueError(f"M_ref must be 4×4, got {M_ref.shape}")
+
+    # -------------------------------------------------------------------------
+    # Compute MW = M_ref @ W and check conditioning
+    # -------------------------------------------------------------------------
+    MW = M_ref @ W
+
+    cond_MW = np.linalg.cond(MW)
+    if cond_MW > 1e10:
+        raise ValueError(
+            f"M_ref @ W is poorly conditioned (cond={cond_MW:.2e}). "
+            f"Check reflector characterization and W quality."
+        )
+
+    # -------------------------------------------------------------------------
+    # Compute A = B_ref @ (M_ref @ W)^(-1)
+    #
+    # For numerical stability, solve: A @ MW = B_ref
+    # Rewriting: MW.T @ A.T = B_ref.T
+    # So: A.T = solve(MW.T, B_ref.T)
+    # And: A = solve(MW.T, B_ref.T).T
+    # -------------------------------------------------------------------------
+    A = np.linalg.solve(MW.T, B_ref.T).T
+
+    # -------------------------------------------------------------------------
+    # Normalize so A[0,0] > 0
+    # -------------------------------------------------------------------------
+    if A[0, 0] < 0:
+        A = -A
+
+    # -------------------------------------------------------------------------
+    # Compute diagnostics
+    # -------------------------------------------------------------------------
+    cond_W = np.linalg.cond(W)
+    condition_number = np.linalg.cond(A)
+    determinant = np.linalg.det(A)
+
+    diagnostics = ADiagnostics(
+        condition_number=condition_number,
+        determinant=determinant,
+        cond_W=cond_W
+    )
+
+    return A, diagnostics

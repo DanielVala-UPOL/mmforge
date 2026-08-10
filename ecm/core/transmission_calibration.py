@@ -65,7 +65,7 @@ from ecm.core.parameter_extraction import (
     PolarizerParams,
     RetarderParams
 )
-from ecm.utils.io import load_spectral_data, load_wavelengths
+from ecm.utils.io import load_spectral_data, load_wavelengths, detect_angular_positions
 from ecm.utils.mueller_matrices import polarizer, retarder, identity, elliptic_retarder
 from ecm.core.ecm_optimization import (
     OptimizationFlags,
@@ -233,7 +233,8 @@ class CalibrationDiagnostics:
 
 def calibrate_transmission(
     cfg: 'ECMConfig',
-    progress_callback: Optional[Callable[[int, int, float], None]] = None
+    progress_callback: Optional[Callable[[int, int, float], None]] = None,
+    step_callback: Optional[Callable[[int, int, str], None]] = None,
 ) -> Tuple[CalibrationResult, CalibrationDiagnostics]:
     """
     Perform complete ECM calibration in transmission mode.
@@ -254,9 +255,16 @@ def calibrate_transmission(
         ECM configuration with all necessary settings.
 
     progress_callback : callable, optional
-        Callback function for progress updates.
+        Per-wavelength progress callback for the final K/W/A solve.
         Signature: callback(current_wl, total_wl, eigenvalue_ratio)
         If None, uses tqdm for progress display.
+
+    step_callback : callable, optional
+        Step-level callback fired at the start of each major calibration
+        stage. Lets a GUI display the current step ``[n/total]`` and stage
+        name so the user has feedback during the fast early phases.
+        Signature: ``callback(step_idx, total_steps, label) -> None``
+        where ``step_idx`` is 1-based.
 
     Returns
     -------
@@ -319,22 +327,68 @@ def calibrate_transmission(
     # =========================================================================
     # STEP 1: DISCOVER CALIBRATION FILES
     # =========================================================================
-    print("\n[1/7] Discovering calibration files...")
     cal_files = discover_calibration_files(cfg)
     use_ret45 = cal_files.has_second_retarder
+
+    # Dynamic step counter (total depends on whether retarder char files exist)
+    _step = 0
+    _has_ret_char = (
+        (cal_files.ret_90_char is not None and cal_files.ret_90_char.exists()) or
+        (use_ret45 and cal_files.ret_45_char is not None and cal_files.ret_45_char.exists())
+    )
+    _total_steps = 8 if _has_ret_char else 7
+
+    def _next_step(label: str) -> str:
+        nonlocal _step
+        _step += 1
+        if step_callback is not None:
+            try:
+                step_callback(_step, _total_steps, label)
+            except Exception:
+                # Never let GUI callback errors break the calibration.
+                pass
+        return f"[{_step}/{_total_steps}] {label}"
+
+    print(f"\n{_next_step('Discovering calibration files...')}")
+
+    # Auto-detect angular positions from binary calibration file dimensions
+    detection_paths = [
+        cal_files.dark, cal_files.air,
+        cal_files.pol_0, cal_files.pol_45, cal_files.ret_90,
+    ]
+    detection_labels = ['DARK', 'ST', 'P0', 'P45', 'FP1']
+    if cal_files.ret_45 is not None:
+        detection_paths.append(cal_files.ret_45)
+        detection_labels.append('FP2')
+    detected_n_angular = detect_angular_positions(
+        detection_paths, cfg.spectrometer.n_wavelengths,
+        cfg.acquisition.n_rotation_cycles, detection_labels,
+    )
+    cfg.acquisition.n_angular_positions = detected_n_angular
+    print(f"  Detected angular positions: {detected_n_angular} (from file dimensions)")
+
+    # Nyquist check
+    min_positions = 2 * cfg.fourier.max_harmonic
+    if detected_n_angular < min_positions:
+        raise ValueError(
+            f"Detected angular positions ({detected_n_angular}) insufficient "
+            f"for harmonic {cfg.fourier.max_harmonic}. Need >= {min_positions}."
+        )
 
     # =========================================================================
     # STEP 2: LOAD WAVELENGTHS
     # =========================================================================
-    print("\n[2/7] Loading wavelength calibration...")
+    print(f"\n{_next_step('Loading wavelength calibration...')}")
     wavelengths, wl_indices, wl_info = load_wavelengths(cfg)
     n_wavelengths = len(wavelengths)
     print(f"  Wavelength range: {wavelengths.min():.1f} - {wavelengths.max():.1f} nm")
     print(f"  Number of wavelengths: {n_wavelengths}")
 
     # =========================================================================
-    # STEP 2.5: LOAD RETARDER CHARACTERIZATION (if available)
+    # STEP 2.5: LOAD RETARDER CHARACTERIZATION (conditional step)
     # =========================================================================
+    if _has_ret_char:
+        print(f"\n{_next_step('Loading retarder characterization...')}")
     # Load wavelength-dependent retardation from characterization files
     # These provide more accurate retardation values than eigenvalue extraction
     use_ret_char = False
@@ -375,7 +429,7 @@ def calibrate_transmission(
     # =========================================================================
     # STEP 3: BUILD MODULATION BASIS
     # =========================================================================
-    print("\n[3/7] Building modulation basis matrix...")
+    print(f"\n{_next_step('Building modulation basis matrix...')}")
     basis = build_modulation_basis(cfg)
     print(f"  Angular positions: {len(basis.omega)}")
     print(f"  Condition number: {basis.condition_number:.2f}")
@@ -386,7 +440,7 @@ def calibrate_transmission(
     # =========================================================================
     # STEP 4: LOAD CALIBRATION DATA
     # =========================================================================
-    print("\n[4/7] Loading calibration measurements...")
+    print(f"\n{_next_step('Loading calibration measurements...')}")
 
     # Load dark
     print(f"  Loading dark...")
@@ -425,7 +479,7 @@ def calibrate_transmission(
     # =========================================================================
     # STEP 5: BUILD INTENSITY MATRICES
     # =========================================================================
-    print("\n[5/7] Building intensity matrices...")
+    print(f"\n{_next_step('Building intensity matrices...')}")
 
     B_air = build_intensity_matrix(I_air, basis.inv_W_mod)
     B_pol0 = build_intensity_matrix(I_pol0, basis.inv_W_mod)
@@ -442,7 +496,7 @@ def calibrate_transmission(
     # =========================================================================
     # STEP 6: EXTRACT SAMPLE PARAMETERS
     # =========================================================================
-    print("\n[6/7] Extracting sample parameters...")
+    print(f"\n{_next_step('Extracting sample parameters...')}")
 
     # Initialize arrays for extracted parameters
     pol0_tau = np.zeros(n_wavelengths)
@@ -558,7 +612,7 @@ def calibrate_transmission(
     # =========================================================================
     # STEP 7: MAIN ECM CALIBRATION LOOP (WITH OPTIMIZATION)
     # =========================================================================
-    print(f"\n[7/7] Performing ECM calibration with optimization...")
+    print(f"\n{_next_step('Performing ECM calibration with optimization...')}")
 
     # Initialize output arrays
     W_all = np.zeros((4, 4, n_wavelengths), dtype=np.float64)

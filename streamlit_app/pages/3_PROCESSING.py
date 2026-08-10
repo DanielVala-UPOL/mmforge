@@ -24,15 +24,21 @@ from components.plots_plotly import (
     create_mueller_matrix_plot,
     create_selected_elements_plot,
     create_mueller_comparison_plot,
+    create_ellipsometry_plot,
+    create_ellipsometry_comparison_plot,
 )
 from components.mueller_selector import mueller_element_selector
 from utils.session_state import (
     initialize_session_state,
     is_calibrated,
+    is_reflection_calibrated,
     get_calibration_result,
     get_calibration_diagnostics,
+    get_reflection_calibration_result,
+    get_reflection_calibration_diagnostics,
     get_processed_samples,
     add_processed_sample,
+    add_reflection_processed_sample,
     get_current_sample,
     set_current_sample,
     get_selected_elements,
@@ -44,7 +50,77 @@ from utils.styling import inject_custom_css, soft_divider
 # ECM imports
 from ecm.io import discover_sample_files
 from ecm.core.sample_processing import process_sample
+from ecm.core.ellipsometry import extract_ellipsometric_parameters
 from ecm.utils.io import load_spectral_data
+
+
+# ============================================================================
+# MODE-AWARE STATE HELPERS
+# ============================================================================
+
+def _active_state():
+    """Return mode-aware lookups used throughout this page.
+
+    Returns
+    -------
+    dict with keys: mode, is_reflection, calibrated, cal_result, cal_diag,
+        data_dir, processed_samples, ellips_results, processed_key,
+        ellips_key, current_key, selected_key, discovered_key, aoi_deg
+    """
+    mode = st.session_state.get('calibration_mode', 'Transmission')
+    is_reflection = (mode == 'Reflection')
+
+    if is_reflection:
+        return {
+            'mode': mode,
+            'is_reflection': True,
+            'calibrated': is_reflection_calibrated(),
+            'cal_result': get_reflection_calibration_result(),
+            'cal_diag': get_reflection_calibration_diagnostics(),
+            'data_dir': st.session_state.get('refl_data_dir_path', ''),
+            'processed_samples': st.session_state.get('refl_processed_samples', {}),
+            'ellips_results': st.session_state.get('refl_ellipsometry_results', {}),
+            'processed_key': 'refl_processed_samples',
+            'ellips_key': 'refl_ellipsometry_results',
+            'current_key': 'refl_current_sample',
+            'selected_key': 'refl_selected_samples',
+            'discovered_key': 'refl_discovered_samples',
+            'aoi_deg': float(st.session_state.get('refl_aoi_deg', 70.0)),
+        }
+    return {
+        'mode': mode,
+        'is_reflection': False,
+        'calibrated': is_calibrated(),
+        'cal_result': get_calibration_result(),
+        'cal_diag': get_calibration_diagnostics(),
+        'data_dir': st.session_state.get('data_dir_path', ''),
+        'processed_samples': get_processed_samples(),
+        'ellips_results': {},
+        'processed_key': 'processed_samples',
+        'ellips_key': None,
+        'current_key': 'current_sample',
+        'selected_key': 'selected_samples',
+        'discovered_key': 'discovered_samples',
+        'aoi_deg': None,
+    }
+
+
+def _active_processed():
+    """Mode-aware accessor for the processed-samples dict (mirrors get_processed_samples)."""
+    s = _active_state()
+    return s['processed_samples']
+
+
+def _active_set_current(name):
+    """Mode-aware setter for the currently selected sample."""
+    s = _active_state()
+    st.session_state[s['current_key']] = name
+
+
+def _active_get_current():
+    """Mode-aware getter for the currently selected sample."""
+    s = _active_state()
+    return st.session_state.get(s['current_key'])
 
 
 # ============================================================================
@@ -99,30 +175,34 @@ def build_config_from_session():
     cfg = ECMConfig()
     mode = st.session_state.get('calibration_mode', 'Transmission')
     if mode == 'Reflection':
-        data_dir = st.session_state.get('reflection_dir_path', '')
+        data_dir = st.session_state.get('refl_data_dir_path', '')
+        refl_assets_dir = st.session_state.get('refl_assets_dir_path', '')
+        cfg.mode = 'reflection'
+        if refl_assets_dir:
+            cfg.paths.assets_dir = Path(refl_assets_dir)
+        cfg.reflection_cal.angle_of_incidence_deg = float(
+            st.session_state.get('refl_aoi_deg', 70.0)
+        )
     else:
         data_dir = st.session_state.get('data_dir_path', '')
     if data_dir:
         cfg.paths.data_dir = Path(data_dir)
+        if mode == 'Reflection':
+            cfg.paths.calibration_reflection_dir = Path(data_dir)
 
     wl_min = st.session_state.get('wl_min', 400)
     wl_max = st.session_state.get('wl_max', 1000)
     cfg.wavelength.range_nm = (float(wl_min), float(wl_max))
     cfg.wavelength.reference_nm = 633.0
 
-    n_positions = st.session_state.get('n_positions', 96)
-    cfg.acquisition.n_angular_positions = n_positions
-
+    # Leave cfg.acquisition.n_angular_positions = None — backend auto-detects.
     return cfg
 
 
 def discover_samples():
     """Discover sample files in the data directory for the current mode."""
-    mode = st.session_state.get('calibration_mode', 'Transmission')
-    if mode == 'Reflection':
-        data_dir = st.session_state.get('reflection_dir_path', '')
-    else:
-        data_dir = st.session_state.get('data_dir_path', '')
+    state = _active_state()
+    data_dir = state['data_dir']
     if not data_dir:
         st.error("Data directory not set. Go to **Configuration** page and set the data directory first.")
         return
@@ -133,8 +213,8 @@ def discover_samples():
         with st.spinner("Discovering sample files..."):
             samples = discover_sample_files(Path(data_dir), cfg)
 
-        st.session_state['discovered_samples'] = samples
-        st.session_state['selected_samples'] = []  # Reset selection
+        st.session_state[state['discovered_key']] = samples
+        st.session_state[state['selected_key']] = []  # Reset selection
 
         if samples.n_samples > 0:
             st.success(f"Found {samples.n_samples} sample(s)")
@@ -148,40 +228,36 @@ def discover_samples():
 
 
 def process_selected_samples():
-    """Process all selected samples."""
-    selected = st.session_state.get('selected_samples', [])
+    """Process all selected samples. Computes ellipsometric params for Reflection mode."""
+    state = _active_state()
+    selected = st.session_state.get(state['selected_key'], [])
     if not selected:
         st.error("No samples selected. Select at least one sample from the list above.")
         return
 
-    samples = st.session_state.get('discovered_samples')
+    samples = st.session_state.get(state['discovered_key'])
     if samples is None:
         st.error("No samples discovered. Click 'Discover Samples' first to find sample files.")
         return
 
-    cal_result = get_calibration_result()
+    cal_result = state['cal_result']
     if cal_result is None:
         st.error("Calibration not available. Run calibration or load a saved calibration on the Calibration page first.")
         return
 
-    # Get calibration diagnostics for dark subtraction
-    cal_diag = get_calibration_diagnostics()
-
+    cal_diag = state['cal_diag']
     cfg = build_config_from_session()
 
-    # Get calibration matrices
     A = cal_result.A
     W = cal_result.W
     inv_W_mod = cal_result.inv_W_mod
 
-    # Progress bar
     progress_bar = st.progress(0, text="Processing...")
 
     processed_count = 0
     errors = []
 
     for i, sample_name in enumerate(selected):
-        # Find sample path
         try:
             sample_idx = samples.names.index(sample_name)
             sample_path = samples.paths[sample_idx]
@@ -190,20 +266,15 @@ def process_selected_samples():
             continue
 
         try:
-            # Load sample data (returns tuple: data, info)
             sample_data, _ = load_spectral_data(sample_path, cfg)
 
-            # Crop sample data to match calibration wavelength range
-            # Raw data has 2048 wavelengths, calibration has subset (e.g., 1414)
             if hasattr(cal_result, 'wl_indices') and cal_result.wl_indices is not None:
                 sample_data = sample_data[:, cal_result.wl_indices]
 
-            # Subtract dark signal (CRITICAL for correct Mueller matrix)
             if cal_diag is not None and hasattr(cal_diag, 'I_dark') and cal_diag.I_dark is not None:
                 sample_data = sample_data - cal_diag.I_dark
-                sample_data = np.maximum(sample_data, 0.0)  # Clamp negative values
+                sample_data = np.maximum(sample_data, 0.0)
 
-            # Process sample
             result = process_sample(
                 sample_data,
                 A=A,
@@ -213,18 +284,22 @@ def process_selected_samples():
                 cfg=cfg
             )
 
-            # Store result
-            add_processed_sample(sample_name, result)
+            if state['is_reflection']:
+                ellips = extract_ellipsometric_parameters(
+                    result.M_normalized,
+                    aoi_deg=state['aoi_deg'],
+                )
+                add_reflection_processed_sample(sample_name, result, ellips)
+            else:
+                add_processed_sample(sample_name, result)
             processed_count += 1
 
         except Exception as e:
             errors.append(f"{sample_name}: {e}")
 
-        # Update progress
         progress = (i + 1) / len(selected)
         progress_bar.progress(progress, text=f"Processing {i+1}/{len(selected)}...")
 
-    # Store results in session state for display after rerun
     st.session_state['_processing_done'] = True
     st.session_state['_processing_count'] = processed_count
     st.session_state['_processing_total'] = len(selected)
@@ -232,15 +307,18 @@ def process_selected_samples():
 
     # Set current sample
     if processed_count > 0:
-        if get_current_sample() is None or get_current_sample() not in get_processed_samples():
-            set_current_sample(selected[0])
+        current = _active_get_current()
+        active_samples = _active_processed()
+        if current is None or current not in active_samples:
+            _active_set_current(selected[0])
 
     st.rerun()
 
 
 def display_sample_checkboxes():
     """Display checkboxes for sample selection."""
-    samples = st.session_state.get('discovered_samples')
+    state = _active_state()
+    samples = st.session_state.get(state['discovered_key'])
     if samples is None or samples.n_samples == 0:
         return
 
@@ -250,14 +328,13 @@ def display_sample_checkboxes():
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Select All", use_container_width=True):
-            # Update selection list AND checkbox widget keys BEFORE widgets exist
-            st.session_state['selected_samples'] = list(samples.names)
+            st.session_state[state['selected_key']] = list(samples.names)
             for name in samples.names:
                 st.session_state[f"sample_cb_{name}"] = True
             st.rerun()
     with col2:
         if st.button("Deselect All", use_container_width=True):
-            st.session_state['selected_samples'] = []
+            st.session_state[state['selected_key']] = []
             for name in samples.names:
                 st.session_state[f"sample_cb_{name}"] = False
             st.rerun()
@@ -280,24 +357,25 @@ def display_sample_checkboxes():
             if checked:
                 new_selection.append(name)
 
-    st.session_state['selected_samples'] = new_selection
+    st.session_state[state['selected_key']] = new_selection
 
 
 def display_results():
     """Display processed sample results with Mueller matrix plots."""
-    processed = get_processed_samples()
+    state = _active_state()
+    processed = state['processed_samples']
     if not processed:
         st.info("No processed samples yet. Process samples to see results.")
         return
 
     sample_names = list(processed.keys())
-    current = get_current_sample()
+    current = _active_get_current()
 
     if current not in sample_names:
         current = sample_names[0]
-        set_current_sample(current)
+        _active_set_current(current)
 
-    cal_result = get_calibration_result()
+    cal_result = state['cal_result']
 
     # View mode toggle - add Compare Samples option if multiple samples
     view_options = ["4x4 Grid", "Selected Elements"]
@@ -350,6 +428,16 @@ def display_results():
             )
             st.plotly_chart(fig, use_container_width=True)
 
+            # Ellipsometric comparison plots for reflection mode
+            if state['is_reflection']:
+                ellips_dict = {
+                    name: state['ellips_results'][name]
+                    for name in selected_for_compare
+                    if name in state['ellips_results']
+                }
+                if len(ellips_dict) >= 2:
+                    _render_ellipsometry_comparison(wavelengths, ellips_dict)
+
         elif len(selected_for_compare) == 1:
             st.info("Select at least 2 samples to compare")
         else:
@@ -365,7 +453,7 @@ def display_results():
         )
 
         if selected_sample != current:
-            set_current_sample(selected_sample)
+            _active_set_current(selected_sample)
 
         result = processed[selected_sample]
         wavelengths = cal_result.wavelengths if cal_result else np.arange(result.M_normalized.shape[2])
@@ -404,10 +492,57 @@ def display_results():
             else:
                 st.info("Select elements from the grid above to display")
 
+        # Ellipsometric parameter block for reflection samples
+        if state['is_reflection']:
+            ellips = state['ellips_results'].get(selected_sample)
+            if ellips is not None:
+                _render_ellipsometry_single(wavelengths, ellips, selected_sample)
+
+
+def _render_ellipsometry_single(wavelengths, ellips, sample_name):
+    """Render the 4-tab ellipsometric parameter block for one sample."""
+    with st.expander(f"Ellipsometric Parameters — {sample_name}", expanded=True):
+        tab_pd, tab_ncs, tab_eps, tab_nk = st.tabs([
+            "Psi & Delta", "N, C, S", "Pseudo-ε", "Pseudo n & k"
+        ])
+        with tab_pd:
+            fig = create_ellipsometry_plot(wavelengths, ellips, parameter='psi_delta')
+            st.plotly_chart(fig, use_container_width=True)
+        with tab_ncs:
+            fig = create_ellipsometry_plot(wavelengths, ellips, parameter='ncs')
+            st.plotly_chart(fig, use_container_width=True)
+        with tab_eps:
+            fig = create_ellipsometry_plot(wavelengths, ellips, parameter='pseudo_epsilon')
+            st.plotly_chart(fig, use_container_width=True)
+        with tab_nk:
+            fig = create_ellipsometry_plot(wavelengths, ellips, parameter='pseudo_nk')
+            st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_ellipsometry_comparison(wavelengths, ellips_dict):
+    """Render the 4-tab multi-sample ellipsometry comparison block."""
+    with st.expander("Compare Ellipsometric Parameters", expanded=False):
+        tab_pd, tab_ncs, tab_eps, tab_nk = st.tabs([
+            "Psi & Delta", "N, C, S", "Pseudo-ε", "Pseudo n & k"
+        ])
+        with tab_pd:
+            fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='psi_delta')
+            st.plotly_chart(fig, use_container_width=True)
+        with tab_ncs:
+            fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='ncs')
+            st.plotly_chart(fig, use_container_width=True)
+        with tab_eps:
+            fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='pseudo_epsilon')
+            st.plotly_chart(fig, use_container_width=True)
+        with tab_nk:
+            fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='pseudo_nk')
+            st.plotly_chart(fig, use_container_width=True)
+
 
 def save_results():
-    """Save processed samples to .npz file."""
-    processed = get_processed_samples()
+    """Save processed samples (and ellipsometry for reflection mode) to .npz file."""
+    state = _active_state()
+    processed = state['processed_samples']
     if not processed:
         st.error("No processed samples to save. Process samples first before exporting.")
         return
@@ -416,13 +551,13 @@ def save_results():
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    cal_result = get_calibration_result()
+    cal_result = state['cal_result']
     wavelengths = cal_result.wavelengths if cal_result else None
 
-    # Build save data
     save_data = {
         'wavelengths': wavelengths,
         'sample_names': list(processed.keys()),
+        'mode': state['mode'],
     }
 
     for name, result in processed.items():
@@ -430,28 +565,39 @@ def save_results():
         save_data[f'{name}_M_normalized'] = result.M_normalized
         save_data[f'{name}_m00'] = result.m00
 
-    # Save file
-    filepath = output_path / 'processed_samples.npz'
+    if state['is_reflection']:
+        for name, ellips in state['ellips_results'].items():
+            save_data[f'{name}_psi_deg'] = ellips.psi_deg
+            save_data[f'{name}_delta_deg'] = ellips.delta_deg
+            save_data[f'{name}_N'] = ellips.N
+            save_data[f'{name}_C'] = ellips.C
+            save_data[f'{name}_S'] = ellips.S
+            save_data[f'{name}_pseudo_n'] = ellips.pseudo_n
+            save_data[f'{name}_pseudo_k'] = ellips.pseudo_k
+            save_data[f'{name}_pseudo_eps_real'] = ellips.pseudo_epsilon.real
+            save_data[f'{name}_pseudo_eps_imag'] = ellips.pseudo_epsilon.imag
+
+    suffix = 'reflection' if state['is_reflection'] else 'transmission'
+    filepath = output_path / f'processed_samples_{suffix}.npz'
     np.savez(filepath, **save_data)
 
     st.success(f"Saved to: `{filepath}`")
 
 
 def export_csv():
-    """Export Mueller matrix data to CSV with selection dialog."""
-    processed = get_processed_samples()
+    """Export Mueller matrix (and ellipsometry for reflection) data to CSV."""
+    state = _active_state()
+    processed = state['processed_samples']
     if not processed:
         st.error("No processed samples available for export. Process samples first.")
         return
 
-    cal_result = get_calibration_result()
     sample_names = list(processed.keys())
+    m00_label = "M00 Reflection" if state['is_reflection'] else "M00 Transmission"
 
-    # Show dialog in expander
     with st.expander("CSV Export Options", expanded=True):
         st.markdown("**Select samples to export:**")
 
-        # Sample selection
         selected_samples = []
         cols = st.columns(min(3, len(sample_names)))
         for idx, name in enumerate(sample_names):
@@ -460,20 +606,30 @@ def export_csv():
                     selected_samples.append(name)
 
         st.markdown("**Select data to include:**")
-        col1, col2 = st.columns(2)
+        if state['is_reflection']:
+            col1, col2, col3 = st.columns(3)
+        else:
+            col1, col2 = st.columns(2)
         with col1:
             include_normalized = st.checkbox("Normalized Mueller Matrix (m11-m44)", value=True, key="csv_inc_norm")
         with col2:
-            include_m00 = st.checkbox("M00 Transmission", value=True, key="csv_inc_m00")
+            include_m00 = st.checkbox(m00_label, value=True, key="csv_inc_m00")
+        if state['is_reflection']:
+            with col3:
+                include_ellips = st.checkbox("Ellipsometric Parameters", value=True, key="csv_inc_ellips")
+        else:
+            include_ellips = False
 
         if st.button("Export Selected", type="primary", disabled=len(selected_samples) == 0, key="csv_export_btn"):
-            _do_csv_export(selected_samples, include_normalized, include_m00)
+            _do_csv_export(selected_samples, include_normalized, include_m00, include_ellips)
 
 
-def _do_csv_export(selected_samples, include_normalized, include_m00):
+def _do_csv_export(selected_samples, include_normalized, include_m00, include_ellips=False):
     """Actually perform the CSV export."""
-    processed = get_processed_samples()
-    cal_result = get_calibration_result()
+    state = _active_state()
+    processed = state['processed_samples']
+    cal_result = state['cal_result']
+    ellips_results = state['ellips_results']
 
     output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'processing_output'))
     output_path = Path(output_dir)
@@ -494,7 +650,19 @@ def _do_csv_export(selected_samples, include_normalized, include_m00):
                     data[f'm{i+1}{j+1}'] = M[i, j, :]
 
         if include_m00:
-            data['M00_transmission'] = result.m00
+            data['m00'] = result.m00
+
+        if include_ellips and name in ellips_results:
+            e = ellips_results[name]
+            data['psi_deg'] = e.psi_deg
+            data['delta_deg'] = e.delta_deg
+            data['N'] = e.N
+            data['C'] = e.C
+            data['S'] = e.S
+            data['pseudo_n'] = e.pseudo_n
+            data['pseudo_k'] = e.pseudo_k
+            data['pseudo_eps_real'] = e.pseudo_epsilon.real
+            data['pseudo_eps_imag'] = e.pseudo_epsilon.imag
 
         df = pd.DataFrame(data)
         filepath = output_path / f'{name}_mueller_matrix.csv'
@@ -510,27 +678,32 @@ def _do_csv_export(selected_samples, include_normalized, include_m00):
 def main():
     st.title("Sample Processing")
 
+    state = _active_state()
+
     # -------------------------------------------------
     # Calibration Status Check
     # -------------------------------------------------
-    if not is_calibrated():
-        st.warning("Not calibrated. Please run calibration or load a saved calibration first.")
+    if not state['calibrated']:
+        mode_label = "reflection" if state['is_reflection'] else "transmission"
+        st.warning(
+            f"Not calibrated in {mode_label} mode. "
+            "Please run calibration or load a saved calibration first."
+        )
         st.stop()
 
-    st.success("Calibrated - Ready to process samples")
+    st.success(f"Calibrated ({state['mode']}) — Ready to process samples")
 
     soft_divider()
 
     # -------------------------------------------------
     # Sample Selection Section
     # -------------------------------------------------
-    has_processed = len(get_processed_samples()) > 0
+    has_processed = len(state['processed_samples']) > 0
 
     with st.expander("Sample Selection", expanded=not has_processed):
         st.markdown("Discover and select samples from your data directory.")
 
-        # Discover button (uses data_dir from Configuration)
-        discover_disabled = not st.session_state.get('data_dir_path', '')
+        discover_disabled = not state['data_dir']
 
         if st.button(
             "Discover Samples",
@@ -555,7 +728,7 @@ def main():
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        selected = st.session_state.get('selected_samples', [])
+        selected = st.session_state.get(state['selected_key'], [])
         process_disabled = len(selected) == 0
 
         if st.button(
@@ -594,8 +767,9 @@ def main():
         del st.session_state['_processing_total']
         del st.session_state['_processing_errors']
 
-        # Update has_processed for Results section
-        has_processed = len(get_processed_samples()) > 0
+        # Re-read state (it picked up new processed samples)
+        state = _active_state()
+        has_processed = len(state['processed_samples']) > 0
 
     # -------------------------------------------------
     # Results Section

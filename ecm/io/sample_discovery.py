@@ -91,8 +91,10 @@ class SampleFiles:
 # CALIBRATION KEYWORDS (to exclude)
 # =============================================================================
 
-# These keywords identify calibration files that should be excluded
+# These keywords identify calibration files that should be excluded from
+# sample discovery. Covers both transmission and reflection calibration files.
 CALIBRATION_KEYWORDS = [
+    # Transmission
     '_DARK_ECM_',
     '_ST_ECM_',
     '_P0_ECM_',
@@ -101,6 +103,12 @@ CALIBRATION_KEYWORDS = [
     '_RET45_FP2_ECM_',
     '_RET90_ECM_',
     '_RET45_ECM_',
+    # Reflection
+    '_WAFER25NM_POL_BEFORE_ECM_',
+    '_WAFER25NM_POL_AFTER_ECM_',
+    '_WAFER25NM_ECM_',
+    '_WAFER10NM_ECM_',
+    # Generic
     '_ECM_CAL_',
     '_CALIBRATION_',
 ]

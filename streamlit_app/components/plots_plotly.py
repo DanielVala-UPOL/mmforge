@@ -31,24 +31,47 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 from numpy import ndarray
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 
 
 # ============================================================================
 # COMMON STYLING CONSTANTS
 # ============================================================================
 
-# Font sizes (~1.5x default, increased for readability)
+# ----------------------------------------------------------------------------
+# Global typography
+# ----------------------------------------------------------------------------
 FONT_SIZE_BASE = 20
 FONT_SIZE_TITLE = 22
 FONT_SIZE_AXIS_TITLE = 20
-FONT_SIZE_TICK = 16
-FONT_SIZE_SUBPLOT_TITLE = 16
-FONT_SIZE_LEGEND = 16
+FONT_SIZE_TICK = 20            # ~25% larger than the historical 16
+FONT_SIZE_SUBPLOT_TITLE = 22   # M_ij / m_ij labels on Mueller grids — bumped
+FONT_SIZE_LEGEND = 22          # bumped ~44% from 18 per user request
+
+# How far (px) to lift `make_subplots` subplot titles above the top edge
+# of each subplot's box. Without this, Plotly anchors them at y=top of
+# the subplot domain (yanchor='bottom'), so the text sits *on* the box
+# edge and overlaps the top y-tick.
+SUBPLOT_TITLE_YSHIFT = 12
+
+# ----------------------------------------------------------------------------
+# Global axis-frame styling (applied by ``apply_common_styling``)
+# ----------------------------------------------------------------------------
+# Every "data plot" (i.e. anything except the QualityBreakdown bar chart)
+# gets a thin black rectangular box around its plot area — Plotly's
+# ``showline=True, mirror=True`` combination. For ``make_subplots``
+# figures, each subplot gets its own box.
+AXIS_BOX_WIDTH = 1.2
+AXIS_BOX_COLOR = 'black'
 
 # Grid styling
-GRID_COLOR = 'lightgray'
+GRID_COLOR = '#E8E8E8'
 GRID_WIDTH = 1
+
+# Layout margins / legend (sized so the legend below the plot doesn't
+# overlap the x-axis title even on small Streamlit windows).
+MARGIN_DEFAULT = dict(l=70, r=40, t=80, b=140)
+LEGEND_Y_OFFSET = -0.24
 
 # ============================================================================
 # MMFORGE COLOR PALETTE
@@ -87,74 +110,142 @@ TRACE_COLORS = [
 ]
 
 
-def apply_common_styling(fig, show_grid=True):
-    """
-    Apply common styling to all plots for a refined, publication-ready appearance.
+def apply_common_styling(fig, show_grid=True, show_box=True):
+    """Apply MMForge's global plot styling.
+
+    Single source of truth for typography, axis frame, gridlines, margins,
+    legend, and hover styling. **Every plot helper in this module must
+    call this once at the end** so the GUI stays visually consistent.
+
+    Two styling modes
+    -----------------
+    *Data-plot mode* (``show_box=True``, the default) — for everything
+    in the app *except* the Quality Breakdown bar chart. Draws a thin
+    black rectangular box around every axis (a real box, not just a
+    single line: ``showline=True, mirror=True`` on both axes). For a
+    ``make_subplots`` figure this puts a box around *each* subplot
+    individually, not the whole figure. Ticks sit outside the plot
+    area for a publication-quality look.
+
+    *Chart mode* (``show_box=False``) — used by the Quality Breakdown
+    horizontal bar chart. Single, lightweight bottom + left lines in
+    a soft gray (#E0E0E0), no mirror, inside ticks, smaller tick font.
+    Visually matches the original (pre-v2.0-styling) chart appearance.
+
+    Subplot titles
+    --------------
+    After applying axes, any annotations already present on the figure
+    (the ``M_ij`` / ``m_ij`` labels created by ``make_subplots`` via
+    ``subplot_titles=...``) are bumped to ``FONT_SIZE_SUBPLOT_TITLE``.
+    Custom annotations added *after* this call (e.g. the centered
+    "Wavelength (nm)" label below a Mueller grid) keep their own font
+    settings.
 
     Parameters
     ----------
     fig : go.Figure
         Plotly figure to style.
     show_grid : bool
-        Whether to show grid lines (default True, False for bar charts).
+        Whether to show grid lines (default True; False for bar charts).
+    show_box : bool
+        True (default): draw a black rectangular box around the plot
+        area. False: lightweight bottom + left axis lines only.
 
     Returns
     -------
     fig : go.Figure
-        Styled figure.
+        The styled figure (also mutated in place).
     """
-    # Clean, professional layout
+    # Layout: typography, backgrounds, margins, legend, hover.
     fig.update_layout(
-        # Font consistency
         font=dict(
             family='Arial, sans-serif',
             size=FONT_SIZE_BASE,
-            color='#333333'
+            color='#333333',
         ),
         title_font=dict(size=FONT_SIZE_TITLE),
-
-        # Clean background
         paper_bgcolor='white',
         plot_bgcolor='white',
-
-        # Refined margins (increased bottom for x-axis label + legend)
-        margin=dict(l=60, r=40, t=80, b=100),
-
-        # Legend styling - positioned below plot with adequate spacing
+        margin=MARGIN_DEFAULT,
         legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.15,  # More space from plot edge
-            xanchor="center",
+            orientation='h',
+            yanchor='top',
+            y=LEGEND_Y_OFFSET,
+            xanchor='center',
             x=0.5,
             bgcolor='rgba(255,255,255,0.9)',
             bordercolor='#E0E0E0',
             borderwidth=1,
             font=dict(size=FONT_SIZE_LEGEND),
         ),
-
-        # Hover styling
         hoverlabel=dict(
             bgcolor='white',
             bordercolor='#2D3E50',
-            font=dict(size=12, color='#333333')
-        )
+            font=dict(size=12, color='#333333'),
+        ),
     )
 
-    # Refined axis styling
-    axis_style = dict(
-        showgrid=show_grid,
-        gridwidth=1,
-        gridcolor='#F0F0F0' if show_grid else None,
-        showline=True,
-        linewidth=1,
-        linecolor='#E0E0E0',
-        tickfont=dict(size=FONT_SIZE_TICK, color='#666666'),
-        title_font=dict(size=FONT_SIZE_AXIS_TITLE, color='#333333'),
-    )
+    if show_box:
+        # Data-plot mode: black rectangular box, outside ticks, large
+        # tick labels for readability.
+        axis_style = dict(
+            showgrid=show_grid,
+            gridwidth=GRID_WIDTH,
+            gridcolor=GRID_COLOR if show_grid else None,
+            showline=True,
+            linewidth=AXIS_BOX_WIDTH,
+            linecolor=AXIS_BOX_COLOR,
+            mirror=True,
+            ticks='outside',
+            ticklen=4,
+            tickwidth=1,
+            tickcolor=AXIS_BOX_COLOR,
+            tickfont=dict(size=FONT_SIZE_TICK, color='#333333'),
+            title_font=dict(size=FONT_SIZE_AXIS_TITLE, color='#333333'),
+        )
+    else:
+        # Chart mode: lightweight axes for the Quality Breakdown bar
+        # chart (and any future "chart style" figure).
+        axis_style = dict(
+            showgrid=show_grid,
+            gridwidth=GRID_WIDTH,
+            gridcolor=GRID_COLOR if show_grid else None,
+            showline=True,
+            linewidth=1,
+            linecolor='#E0E0E0',
+            mirror=False,
+            ticks='inside',
+            tickfont=dict(size=16, color='#666666'),
+            title_font=dict(size=FONT_SIZE_AXIS_TITLE, color='#333333'),
+        )
 
     fig.update_xaxes(**axis_style)
     fig.update_yaxes(**axis_style)
+
+    # Bump subplot-title annotations created by ``make_subplots`` and
+    # lift them clear of the subplot's top box edge.
+    #
+    # Plotly anchors subplot titles at the *top* of each subplot's domain
+    # with ``yanchor='bottom'``; without a shift the text sits flush on
+    # the box line and overlaps the top y-tick. Subplot titles have
+    # ``yref='paper'`` with ``y`` strictly inside ``(0, 1]`` (the y-coord
+    # of each subplot's top edge in paper space). Custom annotations we
+    # add elsewhere — a shared "Wavelength (nm)" label below the grid
+    # (y ≈ -0.10), or ``add_vrect`` region markers — fall outside that
+    # range, so the filter below leaves them alone.
+    if fig.layout.annotations:
+        for ann in fig.layout.annotations:
+            y_val = getattr(ann, 'y', None)
+            if y_val is None or not (0.0 < y_val <= 1.0):
+                continue
+            # Looks like a subplot title — bump font and nudge above
+            # the box edge. Preserve any explicit yshift already set.
+            if ann.font is None:
+                ann.font = dict(size=FONT_SIZE_SUBPLOT_TITLE)
+            else:
+                ann.font.size = FONT_SIZE_SUBPLOT_TITLE
+            if not getattr(ann, 'yshift', None):
+                ann.yshift = SUBPLOT_TITLE_YSHIFT
 
     return fig
 
@@ -199,13 +290,14 @@ def create_mueller_matrix_plot(
             else:
                 subplot_titles.append(f'm<sub>{i+1}{j+1}</sub>')  # lowercase m for normalized
 
-    # Create 4x4 subplot grid
+    # Create 4x4 subplot grid. Generous spacing so each subplot's
+    # 20-pt tick labels don't bleed into its neighbour's box.
     fig = make_subplots(
         rows=4, cols=4,
         subplot_titles=subplot_titles,
         shared_xaxes=True,
-        vertical_spacing=0.08,
-        horizontal_spacing=0.05
+        vertical_spacing=0.10,
+        horizontal_spacing=0.08,
     )
 
     for i in range(4):
@@ -233,12 +325,14 @@ def create_mueller_matrix_plot(
 
     fig.update_layout(
         title=title,
-        height=800,
+        height=900,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=80, b=100),  # Increased bottom margin
     )
 
-    # Apply styling with grid
+    # Apply styling — handles margin (MARGIN_DEFAULT), legend
+    # (FONT_SIZE_LEGEND at LEGEND_Y_OFFSET), axis frames, and bumps
+    # subplot-title annotations to FONT_SIZE_SUBPLOT_TITLE with the
+    # SUBPLOT_TITLE_YSHIFT lift above each subplot's top edge.
     apply_common_styling(fig, show_grid=True)
 
     # Set y-limits for matrix elements
@@ -250,11 +344,12 @@ def create_mueller_matrix_plot(
             else:
                 fig.update_yaxes(range=[-1.1, 1.1], row=i+1, col=j+1)
 
-    # Common x-axis label at bottom - centered below tick labels
+    # Common x-axis label, far enough below the bottom row's 20-pt
+    # tick labels that they don't visually overlap.
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.08,  # Positioned below tick labels
+        x=0.5, y=-0.11,
         showarrow=False,
         font=dict(size=FONT_SIZE_AXIS_TITLE)
     )
@@ -311,23 +406,11 @@ def create_selected_elements_plot(
         yaxis_title="Normalized Value",
         height=550,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=60, b=100),  # Extra bottom for many legend items
     )
 
-    # Apply styling with grid - legend toggle is enabled by default in Plotly
+    # Single source of truth — apply_common_styling handles margin
+    # (MARGIN_DEFAULT) and legend (FONT_SIZE_LEGEND at LEGEND_Y_OFFSET).
     apply_common_styling(fig, show_grid=True)
-
-    # Override legend AFTER apply_common_styling - can have many elements
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.15,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=12),  # Smaller font for potentially many items
-        )
-    )
     return fig
 
 
@@ -419,12 +502,20 @@ def create_quality_breakdown_chart(
     total: int
 ) -> go.Figure:
     """
-    Create horizontal bar chart showing quality breakdown.
+    Create horizontal bar chart showing the calibration quality breakdown.
+
+    Styling is intentionally **separate from every other figure in the
+    module** — this is a chart, not a data plot, so it does not call
+    ``apply_common_styling``. The visual language is meant to feel like
+    a dashboard tile: lightweight axes, no box, all five quality tiers
+    always visible on the y-axis (even zero-count ones), thick bars, and
+    a compact x-axis title that doesn't compete with the bar labels.
 
     Parameters
     ----------
     quality_counts : dict
-        Dictionary with keys 'excellent', 'good', 'acceptable', 'marginal', 'poor'.
+        Dictionary with keys 'excellent', 'good', 'acceptable',
+        'marginal', 'poor'.
     total : int
         Total number of wavelengths.
 
@@ -433,7 +524,9 @@ def create_quality_breakdown_chart(
     fig : go.Figure
         Plotly figure.
     """
-    # Reversed order: Poor at bottom (index 0), Excellent at top (displayed at top of horizontal bar chart)
+    # Order: Poor at the bottom, Excellent at the top of the horizontal
+    # bar chart. We force the y-axis to show all 5 categories via
+    # `categoryorder='array'` so empty tiers still get a tick label.
     categories = ['Poor', 'Marginal', 'Acceptable', 'Good', 'Excellent']
     keys = ['poor', 'marginal', 'acceptable', 'good', 'excellent']
     colors = [
@@ -455,24 +548,53 @@ def create_quality_breakdown_chart(
             x=percentages,
             orientation='h',
             marker_color=colors,
+            marker_line_width=0,
+            width=0.7,                           # Thicker bars
             text=[f"{c} ({p:.0f}%)" for c, p in zip(counts, percentages)],
             textposition='auto',
-            textfont=dict(size=FONT_SIZE_TICK),
+            textfont=dict(size=15),
             hovertemplate='%{y}: %{x:.1f}%<extra></extra>',
         )
     )
 
+    # Dedicated chart styling — does NOT go through apply_common_styling.
     fig.update_layout(
-        title="Quality Breakdown",
-        xaxis_title="Percentage (%)",  # Updated label
-        yaxis_title="",
-        height=300,
+        title=dict(text="Quality Breakdown", font=dict(size=FONT_SIZE_TITLE)),
+        font=dict(family='Arial, sans-serif', size=FONT_SIZE_BASE,
+                  color='#333333'),
+        paper_bgcolor='white',
+        plot_bgcolor='white',
+        height=320,
         showlegend=False,
-        xaxis=dict(range=[0, 100])
+        margin=dict(l=110, r=40, t=70, b=70),
+        bargap=0.25,
+        hoverlabel=dict(bgcolor='white', bordercolor='#2D3E50',
+                        font=dict(size=12, color='#333333')),
     )
 
-    # Apply styling WITHOUT grid and WITHOUT box for this chart
-    apply_common_styling(fig, show_grid=False)
+    fig.update_xaxes(
+        title=dict(text="Percentage (%)",
+                   font=dict(size=18, color='#666666')),
+        range=[0, 100],
+        showgrid=False,
+        showline=True,
+        linewidth=1,
+        linecolor='#E0E0E0',
+        mirror=False,
+        ticks='inside',
+        tickfont=dict(size=18, color='#666666'),
+        zeroline=False,
+    )
+    fig.update_yaxes(
+        # Force all five tiers to always show, even those with 0 wavelengths.
+        categoryorder='array',
+        categoryarray=categories,
+        showgrid=False,
+        showline=False,
+        ticks='',
+        tickfont=dict(size=18, color='#333333'),
+        zeroline=False,
+    )
 
     return fig
 
@@ -510,8 +632,8 @@ def create_matrix_elements_plot(
         rows=4, cols=4,
         subplot_titles=subplot_titles,
         shared_xaxes=True,
-        vertical_spacing=0.08,
-        horizontal_spacing=0.05
+        vertical_spacing=0.10,
+        horizontal_spacing=0.08,
     )
 
     for i in range(4):
@@ -534,9 +656,8 @@ def create_matrix_elements_plot(
 
     fig.update_layout(
         title=f"{matrix_name} Matrix Elements vs Wavelength",
-        height=800,
+        height=900,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=80, b=100),
     )
 
     # Apply styling with grid
@@ -546,7 +667,7 @@ def create_matrix_elements_plot(
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.08,
+        x=0.5, y=-0.10,
         showarrow=False,
         font=dict(size=FONT_SIZE_AXIS_TITLE)
     )
@@ -597,8 +718,8 @@ def create_air_validation_plot(
         rows=4, cols=4,
         subplot_titles=subplot_titles,
         shared_xaxes=True,
-        vertical_spacing=0.08,
-        horizontal_spacing=0.05
+        vertical_spacing=0.10,
+        horizontal_spacing=0.08,
     )
 
     # Expected values for identity matrix (normalized)
@@ -630,9 +751,8 @@ def create_air_validation_plot(
 
     fig.update_layout(
         title="Air Validation: A @ W (should equal Identity Matrix)",
-        height=800,
+        height=900,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=80, b=100),
     )
 
     # Apply styling with grid
@@ -642,7 +762,7 @@ def create_air_validation_plot(
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.08,
+        x=0.5, y=-0.10,
         showarrow=False,
         font=dict(size=FONT_SIZE_AXIS_TITLE)
     )
@@ -748,25 +868,11 @@ def create_m00_comparison_plot(
         title=title,
         xaxis_title="Wavelength (nm)",
         yaxis_title="Transmission (a.u.)",
-        height=450,
+        height=520,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=60, b=80),
     )
 
-    # Apply styling with grid
     apply_common_styling(fig, show_grid=True)
-
-    # Override legend AFTER apply_common_styling
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.18,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=13),
-        )
-    )
     return fig
 
 
@@ -808,8 +914,8 @@ def create_mueller_comparison_plot(
         rows=4, cols=4,
         subplot_titles=subplot_titles,
         shared_xaxes=True,
-        vertical_spacing=0.08,
-        horizontal_spacing=0.05
+        vertical_spacing=0.10,
+        horizontal_spacing=0.08,
     )
 
     colors = TRACE_COLORS
@@ -845,45 +951,30 @@ def create_mueller_comparison_plot(
 
     fig.update_layout(
         title=title,
-        height=900,  # Increased height to accommodate legend at bottom
+        height=900,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=80, b=120),  # Increased bottom margin
     )
 
-    # Apply styling with grid (but override legend position after)
+    # Apply styling — handles margin (MARGIN_DEFAULT b=140), subplot-title
+    # yshift, legend (font 26, y=-0.24), and axis frames.
     apply_common_styling(fig, show_grid=True)
 
     # Set y-limits for matrix elements
     for i in range(4):
         for j in range(4):
             if i == 0 and j == 0:
-                # M00 (transmission) - fixed range [0, 1.05]
                 fig.update_yaxes(range=[0, 1.05], row=i+1, col=j+1)
             else:
                 fig.update_yaxes(range=[-1.1, 1.1], row=i+1, col=j+1)
 
-    # Common x-axis label - positioned well below tick labels
+    # Shared "Wavelength (nm)" label below the grid, added AFTER
+    # apply_common_styling so the subplot-title yshift doesn't touch it.
     fig.add_annotation(
         text="Wavelength (nm)",
         xref="paper", yref="paper",
-        x=0.5, y=-0.08,  # Safely below tick labels
+        x=0.5, y=-0.10,
         showarrow=False,
-        font=dict(size=FONT_SIZE_AXIS_TITLE)
-    )
-
-    # Override legend: place below x-axis label with adequate spacing
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.13,  # Below the x-axis label annotation
-            xanchor="center",
-            x=0.5,
-            bgcolor='rgba(255,255,255,0.9)',
-            bordercolor='#E0E0E0',
-            borderwidth=1,
-            font=dict(size=13),
-        )
+        font=dict(size=FONT_SIZE_AXIS_TITLE),
     )
 
     return fig
@@ -1006,24 +1097,11 @@ def create_diattenuation_comparison_plot(
         xaxis_title="Wavelength (nm)",
         yaxis_title="Diattenuation (D)",
         yaxis=dict(range=[0, 1]),
-        height=450,  # Slightly taller to accommodate legend
+        height=520,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     apply_common_styling(fig, show_grid=True)
-
-    # Override legend AFTER apply_common_styling to prevent overwrite
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.18,  # Below x-axis label
-            xanchor="center",
-            x=0.5,
-            font=dict(size=13),
-        )
-    )
     return fig
 
 
@@ -1121,24 +1199,11 @@ def create_di_comparison_plot(
         xaxis_title="Wavelength (nm)",
         yaxis_title="Depolarization Index (DI)",
         yaxis=dict(range=[0, 1.05]),
-        height=450,
+        height=520,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     apply_common_styling(fig, show_grid=True)
-
-    # Override legend AFTER apply_common_styling
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.18,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=13),
-        )
-    )
     return fig
 
 
@@ -1361,24 +1426,11 @@ def create_retardance_comparison_plot(
         title=title,
         xaxis_title="Wavelength (nm)",
         yaxis_title=y_label,
-        height=450,
+        height=520,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     apply_common_styling(fig, show_grid=True)
-
-    # Override legend AFTER apply_common_styling
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.18,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=13),
-        )
-    )
     return fig
 
 
@@ -1573,9 +1625,8 @@ def create_fast_axis_comparison_plot(
 
     fig.update_layout(
         title=title,
-        height=650,
+        height=720,
         hovermode='x unified',
-        margin=dict(l=60, r=40, t=60, b=80),
     )
 
     fig.update_yaxes(title_text=psi_label, range=psi_range, row=1, col=1)
@@ -1583,16 +1634,530 @@ def create_fast_axis_comparison_plot(
     fig.update_xaxes(title_text="Wavelength (nm)", row=2, col=1)
 
     apply_common_styling(fig, show_grid=True)
+    return fig
 
-    # Override legend AFTER apply_common_styling
-    fig.update_layout(
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.12,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=13),
+
+# ============================================================================
+# ELLIPSOMETRY PLOTS (Reflection Mode)
+# ============================================================================
+
+_ELLIPS_PARAMS = ('psi_delta', 'ncs', 'pseudo_epsilon', 'pseudo_nk')
+
+
+def _extract_ellips_traces(ellips, parameter: str):
+    """Return a list of (label, y_values, unit) tuples for a given parameter."""
+    if parameter == 'psi_delta':
+        return [
+            ('Ψ', ellips.psi_deg, 'deg'),
+            ('Δ', ellips.delta_deg, 'deg'),
+        ]
+    if parameter == 'ncs':
+        return [
+            ('N', ellips.N, ''),
+            ('C', ellips.C, ''),
+            ('S', ellips.S, ''),
+        ]
+    if parameter == 'pseudo_epsilon':
+        return [
+            ('Re⟨ε⟩', ellips.pseudo_epsilon.real, ''),
+            ('Im⟨ε⟩', ellips.pseudo_epsilon.imag, ''),
+        ]
+    if parameter == 'pseudo_nk':
+        return [
+            ('⟨n⟩', ellips.pseudo_n, ''),
+            ('⟨k⟩', ellips.pseudo_k, ''),
+        ]
+    raise ValueError(
+        f"Unknown ellipsometry parameter '{parameter}'. "
+        f"Must be one of {_ELLIPS_PARAMS}."
+    )
+
+
+def _ellips_y_title(parameter: str) -> str:
+    """Single-axis y-axis title for a given parameter (not used for psi_delta)."""
+    return {
+        'ncs': 'N, C, S',
+        'pseudo_epsilon': '⟨ε⟩',
+        'pseudo_nk': '⟨n⟩, ⟨k⟩',
+    }.get(parameter, '')
+
+
+def create_ellipsometry_plot(
+    wavelengths: ndarray,
+    ellips_result,
+    parameter: str = 'psi_delta',
+) -> go.Figure:
+    """
+    Plot ellipsometric parameters for a single sample.
+
+    Parameters
+    ----------
+    wavelengths : ndarray
+        Wavelength axis (nm).
+    ellips_result : EllipsometricResult
+        Object with attributes psi_deg, delta_deg, N, C, S,
+        pseudo_epsilon (complex), pseudo_n, pseudo_k.
+    parameter : str
+        One of 'psi_delta', 'ncs', 'pseudo_epsilon', 'pseudo_nk'.
+        'psi_delta' uses a secondary y-axis (Ψ left, Δ right).
+
+    Returns
+    -------
+    fig : go.Figure
+    """
+    if parameter == 'psi_delta':
+        fig = make_subplots(specs=[[{'secondary_y': True}]])
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths, y=ellips_result.psi_deg, name='Ψ',
+                line=dict(color=PRIMARY_COLOR, width=2),
+                mode='lines',
+            ),
+            secondary_y=False,
         )
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths, y=ellips_result.delta_deg, name='Δ',
+                line=dict(color=TRACE_COLORS[0], width=2),
+                mode='lines',
+            ),
+            secondary_y=True,
+        )
+        fig.update_xaxes(title_text='Wavelength (nm)')
+        fig.update_yaxes(title_text='Ψ (deg)', secondary_y=False)
+        fig.update_yaxes(title_text='Δ (deg)', secondary_y=True)
+        fig.update_layout(title='Ψ and Δ')
+        return apply_common_styling(fig)
+
+    # Single-axis plots: NCS, pseudo-epsilon, pseudo-nk
+    fig = go.Figure()
+    traces = _extract_ellips_traces(ellips_result, parameter)
+    for i, (label, y, _unit) in enumerate(traces):
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths, y=y, name=label,
+                line=dict(color=TRACE_COLORS[i % len(TRACE_COLORS)], width=2),
+                mode='lines',
+            )
+        )
+    title_map = {
+        'ncs': 'NCS Parameters',
+        'pseudo_epsilon': 'Pseudo-dielectric function ⟨ε⟩',
+        'pseudo_nk': 'Pseudo n and k',
+    }
+    fig.update_layout(
+        title=title_map.get(parameter, parameter),
+        xaxis_title='Wavelength (nm)',
+        yaxis_title=_ellips_y_title(parameter),
+    )
+    return apply_common_styling(fig)
+
+
+def create_ellipsometry_comparison_plot(
+    wavelengths: ndarray,
+    results: Dict[str, object],
+    parameter: str = 'psi_delta',
+) -> go.Figure:
+    """
+    Multi-sample ellipsometric comparison plot.
+
+    Parameters
+    ----------
+    wavelengths : ndarray
+        Wavelength axis (nm).
+    results : dict[str, EllipsometricResult]
+        Sample name → result.
+    parameter : str
+        One of 'psi_delta', 'ncs', 'pseudo_epsilon', 'pseudo_nk'.
+        For multi-sample, components are stacked vertically (one row per
+        component) rather than dual-axis to keep traces readable.
+    """
+    # Components stacked vertically: psi_delta → 2 rows; ncs → 3 rows;
+    # pseudo_epsilon/pseudo_nk → 2 rows.
+    traces_template = _extract_ellips_traces(next(iter(results.values())), parameter)
+    n_components = len(traces_template)
+    component_labels = [t[0] for t in traces_template]
+    component_units = [t[2] for t in traces_template]
+
+    fig = make_subplots(
+        rows=n_components, cols=1, shared_xaxes=True,
+        subplot_titles=component_labels, vertical_spacing=0.10,
+    )
+
+    for i, (name, ellips) in enumerate(results.items()):
+        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        traces = _extract_ellips_traces(ellips, parameter)
+        for row_idx, (label, y, _unit) in enumerate(traces, start=1):
+            fig.add_trace(
+                go.Scatter(
+                    x=wavelengths, y=y, name=name,
+                    legendgroup=name,
+                    showlegend=(row_idx == 1),  # only legend entry on first row
+                    line=dict(color=color, width=2),
+                    mode='lines',
+                ),
+                row=row_idx, col=1,
+            )
+
+    # Y-axis titles per row (include units)
+    for row_idx in range(1, n_components + 1):
+        label = component_labels[row_idx - 1]
+        unit = component_units[row_idx - 1]
+        title = f"{label} ({unit})" if unit else label
+        fig.update_yaxes(title_text=title, row=row_idx, col=1)
+
+    fig.update_xaxes(title_text='Wavelength (nm)', row=n_components, col=1)
+    title_map = {
+        'psi_delta': 'Ψ and Δ — Comparison',
+        'ncs': 'NCS Parameters — Comparison',
+        'pseudo_epsilon': 'Pseudo-dielectric function — Comparison',
+        'pseudo_nk': 'Pseudo n and k — Comparison',
+    }
+    fig.update_layout(title=title_map.get(parameter, parameter))
+    return apply_common_styling(fig)
+
+
+# ============================================================================
+# DECOMPOSITION PLOTS — Differential / Cloude / Purity
+# ============================================================================
+
+# Differential decomposition: L_m, L_u, M_m, M_u are all 4x4 spectral matrices.
+# The 4x4 grid display reuses `create_mueller_matrix_plot()` directly.
+# Single-element overlays reuse `create_selected_elements_plot()`.
+
+def create_eigenvalue_spectrum_plot(
+    wavelengths: ndarray,
+    eigenvalues: ndarray,
+    title: str = 'Cloude Eigenvalues',
+) -> go.Figure:
+    """Plot the four Cloude coherency eigenvalues vs wavelength.
+
+    Parameters
+    ----------
+    wavelengths : ndarray, shape (n_wl,)
+    eigenvalues : ndarray, shape (4, n_wl)
+        Each row is one eigenvalue across wavelength.
+    """
+    fig = go.Figure()
+    labels = ['λ₀ (dominant)', 'λ₁', 'λ₂', 'λ₃']
+    for i in range(4):
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths, y=eigenvalues[i, :], name=labels[i],
+                line=dict(color=TRACE_COLORS[i % len(TRACE_COLORS)], width=2),
+                mode='lines',
+            )
+        )
+    fig.update_layout(
+        title=title,
+        xaxis_title='Wavelength (nm)',
+        yaxis_title='Eigenvalue',
+    )
+    return apply_common_styling(fig)
+
+
+def create_eigenvalue_spectrum_comparison_plot(
+    wavelengths: ndarray,
+    results: Dict[str, object],
+) -> go.Figure:
+    """Multi-sample Cloude eigenvalue comparison (one row per eigenvalue)."""
+    fig = make_subplots(
+        rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.12,
+        subplot_titles=('λ<sub>0</sub> (dominant)', 'λ<sub>1</sub>',
+                        'λ<sub>2</sub>', 'λ<sub>3</sub>'),
+    )
+    for i, (name, res) in enumerate(results.items()):
+        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        for row in range(4):
+            fig.add_trace(
+                go.Scatter(
+                    x=wavelengths, y=res.eigenvalues[row, :], name=name,
+                    legendgroup=name, showlegend=(row == 0),
+                    line=dict(color=color, width=2),
+                    mode='lines',
+                ),
+                row=row + 1, col=1,
+            )
+    fig.update_xaxes(title_text='Wavelength (nm)', row=4, col=1)
+    # Only the middle row carries the y-axis title — same trick as the
+    # purity-indices comparison, prevents 4 stacked "Eigenvalue" labels.
+    fig.update_yaxes(title_text='Eigenvalue', row=2, col=1)
+    fig.update_layout(title='Cloude Eigenvalues — Comparison', height=900)
+    return apply_common_styling(fig)
+
+
+def create_coherency_matrix_plot(
+    wavelengths: ndarray,
+    H: ndarray,
+    elements: Optional[List[Tuple[int, int]]] = None,
+    title: str = 'Coherency Matrix |H<sub>ij</sub>|',
+) -> go.Figure:
+    """Plot the magnitude of selected elements of the 4×4 coherency matrix.
+
+    Parameters
+    ----------
+    wavelengths : ndarray, shape (n_wl,)
+    H : ndarray, shape (4, 4, n_wl), complex
+    elements : list of (i, j), optional
+        Defaults to the four diagonal elements (0,0), (1,1), (2,2), (3,3).
+    """
+    if elements is None:
+        elements = [(0, 0), (1, 1), (2, 2), (3, 3)]
+
+    fig = go.Figure()
+    for k, (i, j) in enumerate(elements):
+        y = np.abs(H[i, j, :])
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths, y=y,
+                name=f'|H<sub>{i}{j}</sub>|',
+                line=dict(color=TRACE_COLORS[k % len(TRACE_COLORS)], width=2),
+                mode='lines',
+            )
+        )
+    fig.update_layout(
+        title=title,
+        xaxis_title='Wavelength (nm)',
+        yaxis_title='|H<sub>ij</sub>|',
+    )
+    return apply_common_styling(fig)
+
+
+def create_purity_indices_plot(
+    wavelengths: ndarray,
+    P_P: ndarray,
+    P_S: ndarray,
+    P_Delta: ndarray,
+    sample_name: Optional[str] = None,
+) -> go.Figure:
+    """Plot the three purity indices vs wavelength on a single axis."""
+    fig = go.Figure()
+    triples = (
+        ('P<sub>P</sub> (polarimetric)', P_P),
+        ('P<sub>S</sub> (spherical)', P_S),
+        ('P<sub>Δ</sub> (overall)', P_Delta),
+    )
+    for i, (label, y) in enumerate(triples):
+        fig.add_trace(
+            go.Scatter(
+                x=wavelengths, y=y, name=label,
+                line=dict(color=TRACE_COLORS[i % len(TRACE_COLORS)], width=2),
+                mode='lines',
+            )
+        )
+    title = 'Purity Indices'
+    if sample_name:
+        title = f'{title} — {sample_name}'
+    fig.update_layout(
+        title=title,
+        xaxis_title='Wavelength (nm)',
+        yaxis_title='Purity index',
+        yaxis=dict(range=[0, 1.05]),
+    )
+    return apply_common_styling(fig)
+
+
+def create_purity_indices_comparison_plot(
+    wavelengths: ndarray,
+    results: Dict[str, object],
+) -> go.Figure:
+    """Multi-sample purity indices comparison (one row per index).
+
+    The three rows (P_P / P_S / P_Δ) all share the same [0, 1] y-range,
+    so we put the y-axis title only on the **middle** row rather than
+    repeating "Purity index" three times. ``vertical_spacing=0.16``
+    leaves room for each subplot's title to sit cleanly above its box
+    (after the global ``SUBPLOT_TITLE_YSHIFT`` lift). Titles use proper
+    ``<sub>...</sub>`` HTML so subscripts render — the previous
+    ``P_P`` / ``P_S`` literals showed as raw text with underscores.
+    """
+    fig = make_subplots(
+        rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.16,
+        subplot_titles=(
+            'P<sub>P</sub> (polarimetric)',
+            'P<sub>S</sub> (spherical)',
+            'P<sub>Δ</sub> (overall)',
+        ),
+    )
+    for i, (name, res) in enumerate(results.items()):
+        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        for row_idx, attr in enumerate(('P_P', 'P_S', 'P_Delta'), start=1):
+            fig.add_trace(
+                go.Scatter(
+                    x=wavelengths, y=getattr(res, attr), name=name,
+                    legendgroup=name, showlegend=(row_idx == 1),
+                    line=dict(color=color, width=2),
+                    mode='lines',
+                ),
+                row=row_idx, col=1,
+            )
+    fig.update_xaxes(title_text='Wavelength (nm)', row=3, col=1)
+    # Y-axis title only on the middle row (avoids three overlapping
+    # vertical "Purity index" labels stacking on top of each other).
+    fig.update_yaxes(range=[0, 1.05], row=1, col=1)
+    fig.update_yaxes(title_text='Purity index', range=[0, 1.05], row=2, col=1)
+    fig.update_yaxes(range=[0, 1.05], row=3, col=1)
+    fig.update_layout(title='Purity Indices — Comparison', height=780)
+    return apply_common_styling(fig)
+
+
+def _purity_space_boundary_traces():
+    """Return three boundary-curve traces for the (P_S, P_P) diagram.
+
+    Curves match ECM-PURE's `purity_plots.plot_purity_space` (Gil & Ossikovski):
+      - Solid ellipse for P_S ∈ [√3/3, 1]:  P_P = √(3·(1 − P_S²)/2)
+      - Dashed ellipse for P_S ∈ [0, √3/3]
+      - Solid hyperbola for P_S ∈ [0, √3/3]: P_P = √((1 + 3·P_S²)/2)
+    """
+    sqrt3_3 = np.sqrt(3) / 3
+    # Solid ellipse
+    ps1 = np.linspace(sqrt3_3, 1.0, 200)
+    pp1 = np.sqrt(np.maximum(3.0 * (1.0 - ps1**2) / 2.0, 0.0))
+    # Dashed ellipse
+    ps2 = np.linspace(0.0, sqrt3_3, 200)
+    pp2 = np.sqrt(np.maximum(3.0 * (1.0 - ps2**2) / 2.0, 0.0))
+    # Hyperbola
+    ps3 = np.linspace(0.0, sqrt3_3, 200)
+    pp3 = np.sqrt((1.0 + 3.0 * ps3**2) / 2.0)
+
+    return [
+        go.Scatter(x=ps1, y=pp1, mode='lines',
+                   line=dict(color='black', width=2),
+                   name='Ellipse (solid)', showlegend=False, hoverinfo='skip'),
+        go.Scatter(x=ps2, y=pp2, mode='lines',
+                   line=dict(color='black', width=2, dash='dash'),
+                   name='Ellipse (dashed)', showlegend=False, hoverinfo='skip'),
+        go.Scatter(x=ps3, y=pp3, mode='lines',
+                   line=dict(color='black', width=2),
+                   name='Hyperbola', showlegend=False, hoverinfo='skip'),
+    ]
+
+
+# Theoretical purity-space axes, per Gil & Ossikovski (2022):
+#   x = P_S ∈ [0, 1]      (degree of spherical purity)
+#   y = P_P ∈ [0, √6/2]   (degree of polarimetric purity)
+# We pad the displayed range a hair so the bold-black axis box doesn't
+# clip data points that sit right on the boundary curves.
+_PURITY_X_RANGE = (-0.02, 1.02)
+_PURITY_Y_RANGE = (-0.02, float(np.sqrt(6) / 2) + 0.02)
+
+
+def _apply_purity_space_axes(fig: go.Figure, title: str) -> go.Figure:
+    """Purity-space–specific axis overrides (run *after* common styling).
+
+    Sets the explicit ``[0, 1] × [0, √6/2]`` domain and turns on the
+    reference zerolines at ``P_S = 0`` and ``P_P = 0`` as bold black
+    lines matching the analytical boundary curves' thickness (2 px).
+
+    The common-styling box (``AXIS_BOX_WIDTH``) is inherited from
+    ``apply_common_styling`` — don't redefine it here.
+
+    Notes
+    -----
+    ``scaleanchor='x'`` (forced equal pixel scale) silently widens the
+    displayed x-range past the configured ``range=`` whenever the plot
+    container is wider than tall — which is the Streamlit default with
+    ``use_container_width=True``. We don't use it; a slightly stretched
+    (P_S, P_P) plot is preferable to losing the requested limits.
+    """
+    fig.update_layout(title=title)
+    fig.update_xaxes(
+        title_text='Degree of Spherical Purity P<sub>S</sub>',
+        range=list(_PURITY_X_RANGE),
+        zeroline=True,
+        zerolinecolor='black',
+        zerolinewidth=2,
+    )
+    fig.update_yaxes(
+        title_text='Degree of Polarimetric Purity P<sub>P</sub>',
+        range=list(_PURITY_Y_RANGE),
+        zeroline=True,
+        zerolinecolor='black',
+        zerolinewidth=2,
     )
     return fig
+
+
+def create_purity_space_scatter(
+    P_S: ndarray,
+    P_P: ndarray,
+    wavelengths: Optional[ndarray] = None,
+    sample_name: Optional[str] = None,
+) -> go.Figure:
+    """2-D (P_S, P_P) purity space scatter with theoretical boundary curves.
+
+    The boundary curves are taken from Gil & Ossikovski (2022) via
+    ECM-PURE's `purity_plots.py`. Axes match the original convention:
+    x = P_S ∈ [0, 1], y = P_P ∈ [0, √6/2], with a bold black rectangular
+    border drawn at those limits.
+    """
+    fig = go.Figure()
+    for tr in _purity_space_boundary_traces():
+        fig.add_trace(tr)
+
+    if wavelengths is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=P_S, y=P_P, mode='markers',
+                marker=dict(
+                    size=8,
+                    color=wavelengths,
+                    colorscale='Plasma',
+                    showscale=True,
+                    colorbar=dict(title='Wavelength (nm)'),
+                    line=dict(width=0.3, color='black'),
+                ),
+                name=sample_name or 'Sample',
+                showlegend=False,
+            )
+        )
+    else:
+        fig.add_trace(
+            go.Scatter(
+                x=P_S, y=P_P, mode='markers',
+                marker=dict(size=8, color=PRIMARY_COLOR,
+                            line=dict(width=0.3, color='black')),
+                name=sample_name or 'Sample',
+                showlegend=False,
+            )
+        )
+
+    title = 'Purity Space'
+    if sample_name:
+        title = f'{title}: {sample_name}'
+    # IMPORTANT: apply common styling FIRST, then the purity-specific axes
+    # overrides — apply_common_styling resets linewidth/linecolor on every
+    # axis, which would wipe out our bold black box.
+    apply_common_styling(fig)
+    return _apply_purity_space_axes(fig, title)
+
+
+def create_purity_space_comparison_scatter(
+    results: Dict[str, object],
+    wavelengths: Optional[ndarray] = None,
+) -> go.Figure:
+    """Multi-sample (P_S, P_P) scatter with the same boundary curves.
+
+    Wavelength colorbar is suppressed; each sample gets one trace color.
+    The bold rectangular axis box highlights the natural [0, 1]×[0, √6/2]
+    domain.
+    """
+    fig = go.Figure()
+    for tr in _purity_space_boundary_traces():
+        fig.add_trace(tr)
+
+    for i, (name, res) in enumerate(results.items()):
+        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        fig.add_trace(
+            go.Scatter(
+                x=res.P_S, y=res.P_P, mode='markers',
+                marker=dict(size=7, color=color,
+                            line=dict(width=0.3, color='black')),
+                name=name,
+            )
+        )
+
+    # IMPORTANT: apply common styling FIRST so the purity-specific
+    # overrides (bold black box, explicit range) win on top.
+    apply_common_styling(fig)
+    return _apply_purity_space_axes(fig, 'Purity Space — Comparison')

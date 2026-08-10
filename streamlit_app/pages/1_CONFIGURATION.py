@@ -136,9 +136,9 @@ def main():
             with col1:
                 directory_selector(
                     label="Reflection Data Directory",
-                    key="reflection_dir",
+                    key="refl_data_dir",
                     default_path="",
-                    help_text="Directory containing reflection calibration and sample .bin files"
+                    help_text="Directory containing reflection calibration (DARK, WAFER25NM/10NM, POL_BEFORE, POL_AFTER) and sample .bin files"
                 )
             with col2:
                 directory_selector_compact(
@@ -146,29 +146,6 @@ def main():
                     key="output_dir",
                     default_path=str(Path.cwd() / "calibration_output")
                 )
-
-        elif current_mode == "Combined":
-            col1, col2 = st.columns(2)
-            with col1:
-                directory_selector(
-                    label="Transmission Data Directory",
-                    key="data_dir",
-                    default_path="",
-                    help_text="Directory containing transmission calibration and sample .bin files"
-                )
-            with col2:
-                directory_selector(
-                    label="Reflection Data Directory",
-                    key="reflection_dir",
-                    default_path="",
-                    help_text="Directory containing reflection calibration and sample .bin files"
-                )
-            # Output directory on its own row for Combined mode
-            directory_selector_compact(
-                label="Output Directory",
-                key="output_dir",
-                default_path=str(Path.cwd() / "calibration_output")
-            )
 
     # -------------------------------------------------
     # Wavelength and Acquisition Settings (side by side)
@@ -190,11 +167,15 @@ def main():
             st.markdown("Configure the wavelength range for calibration.")
 
             # Use range slider instead of two number inputs
+            # NOTE: no `value=` — default is pre-loaded into session_state by
+            # initialize_session_state(); passing `value=` together with `key=`
+            # and a pre-populated session_state entry triggers a Streamlit
+            # "default value but also had its value set via Session State"
+            # warning when the user switches modes.
             wl_range = st.slider(
                 "Wavelength Range (nm)",
                 min_value=400,
                 max_value=1000,
-                value=(400, 1000),
                 step=5,
                 key="wavelength_range"
             )
@@ -217,19 +198,41 @@ def main():
         with st.expander("Calibration Mode", expanded=True):
             st.markdown("Select the measurement configuration.")
 
+            # No `index=` — default comes from session_state (pre-initialized).
             mode = st.selectbox(
                 "Mode",
-                options=["Transmission", "Reflection", "Combined", "Tutorial Data"],
-                index=0,
+                options=["Transmission", "Reflection", "Tutorial Data"],
                 key="calibration_mode",
-                help="Transmission mode calibrates the straight-through configuration. Tutorial Data uses bundled example files."
+                help="Transmission calibrates the straight-through configuration. "
+                     "Reflection calibrates oblique-incidence measurements using two wafer references. "
+                     "Tutorial Data uses bundled example files."
             )
 
             # Display mode-specific messages (state already updated at top of main())
             if mode == "Tutorial Data":
                 st.info("Using bundled tutorial data for learning and demonstration. Saving is disabled in this mode.")
-            elif mode != "Transmission":
-                st.warning("Reflection and Combined modes will be available in a future release. Please select Transmission mode for now.")
+            elif mode == "Reflection":
+                # AOI input — passes through to cfg.reflection_cal.angle_of_incidence_deg
+                unlock_aoi = st.checkbox(
+                    "I understand the risks of changing the AOI",
+                    key="unlock_aoi",
+                    help="The AOI is fixed at 70° by default as it provides the best calibration results."
+                )
+                # No `value=` — default comes from session_state (pre-initialized to 70.0).
+                st.number_input(
+                    "Angle of Incidence (degrees)",
+                    min_value=55.0,
+                    max_value=75.0,
+                    step=1.0,
+                    key="refl_aoi_deg",
+                    disabled=not unlock_aoi,
+                    help="AOI of the reflection measurement. Default is 70°."
+                )
+                if unlock_aoi:
+                    st.warning(
+                        "**Changing the AOI may lead to incorrect calibration results if it does not match the actual measurement geometry.**",
+                        icon="⚠️"
+                    )
 
 
 # ============================================================================

@@ -726,3 +726,157 @@ def elliptic_retarder(
     M = R @ M0 @ R.T
 
     return M
+
+
+# =============================================================================
+# REFLECTING SURFACE
+# =============================================================================
+
+def reflector(
+    psi: float,
+    delta: float,
+    Rs: float = None,
+    Rp: float = None,
+    tau: float = None
+) -> ndarray:
+    """
+    Mueller matrix for a reflecting surface characterized by ellipsometric
+    parameters ψ (psi) and Δ (delta).
+
+    Generates the 4×4 Mueller matrix for a specular reflection, using the
+    same mathematical form as an elliptic retarder at θ = 0:
+
+        M_R(ψ, Δ) = τ_R × [  1        -cos(2ψ)       0                 0            ]
+                           [ -cos(2ψ)       1          0                 0            ]
+                           [  0             0     sin(2ψ)·cos(Δ)   sin(2ψ)·sin(Δ)   ]
+                           [  0             0    -sin(2ψ)·sin(Δ)   sin(2ψ)·cos(Δ)   ]
+
+    where τ_R = (Rs + Rp) / 2 is the average reflectance.
+
+    Parameters
+    ----------
+    psi : float
+        Ellipsometric angle in radians.
+        Relates to the amplitude reflection coefficients:
+        tan(ψ) = |rp| / |rs|
+
+    delta : float
+        Ellipsometric phase difference in radians.
+        Δ = arg(rp) - arg(rs)
+
+    Rs : float, optional
+        s-polarization reflectance (intensity). If provided along with Rp,
+        computes τ = (Rs + Rp) / 2. Mutually exclusive with tau.
+
+    Rp : float, optional
+        p-polarization reflectance (intensity). Must be provided together
+        with Rs.
+
+    tau : float, optional
+        Average reflectance scaling factor. If None and Rs/Rp not provided,
+        defaults to 1.0 (normalized Mueller matrix).
+
+    Returns
+    -------
+    M : ndarray, shape (4, 4)
+        Mueller matrix for the reflecting surface.
+
+    Notes
+    -----
+    **Relationship to elliptic_retarder:**
+
+    This function produces the same matrix as
+    ``elliptic_retarder(theta=0, delta=delta, psi=psi, tau=tau)``.
+    A separate function is provided because:
+
+    1. Reflectors have no orientation angle θ — ψ and Δ are defined in
+       the plane of incidence.
+    2. The natural interface uses (Rs, Rp) rather than a single τ.
+    3. The physical meaning of ψ/Δ differs from retarder parameters.
+
+    **Parameter Sources:**
+
+    ψ(λ) and Δ(λ) are typically measured by a spectroscopic ellipsometer
+    (e.g., Woollam VASE). Rs(λ) and Rp(λ) come from the same instrument.
+
+    References
+    ----------
+    [1] Compain et al., Appl. Opt. 38, 3490-3502 (1999), Appendix A
+    [2] Azzam & Bashara, "Ellipsometry and Polarized Light", North-Holland (1987)
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # Normalized reflector (tau = 1)
+    >>> M = reflector(psi=np.pi/4, delta=0.0)
+    >>> np.allclose(M, np.eye(4))  # No dichroism, no phase shift
+    True
+
+    >>> # Reflector with known Rs and Rp
+    >>> M = reflector(psi=0.5, delta=1.2, Rs=0.6, Rp=0.3)
+    >>> np.isclose(M[0, 0], 0.45)  # tau = (0.6 + 0.3) / 2
+    True
+    """
+    # -------------------------------------------------------------------------
+    # Input validation
+    # -------------------------------------------------------------------------
+    if not isinstance(psi, (int, float, np.floating, np.integer)):
+        raise TypeError(
+            f"psi must be a numeric scalar (int or float), got {type(psi).__name__}. "
+            f"Ellipsometric angle should be in radians."
+        )
+
+    if not isinstance(delta, (int, float, np.floating, np.integer)):
+        raise TypeError(
+            f"delta must be a numeric scalar (int or float), got {type(delta).__name__}. "
+            f"Phase difference should be in radians."
+        )
+
+    # -------------------------------------------------------------------------
+    # Determine tau from Rs/Rp or direct argument
+    # -------------------------------------------------------------------------
+    if Rs is not None and Rp is not None:
+        if tau is not None:
+            raise ValueError(
+                "Cannot specify both Rs/Rp and tau. "
+                "Use either (Rs, Rp) or tau, not both."
+            )
+        if not isinstance(Rs, (int, float, np.floating, np.integer)):
+            raise TypeError(f"Rs must be a numeric scalar, got {type(Rs).__name__}.")
+        if not isinstance(Rp, (int, float, np.floating, np.integer)):
+            raise TypeError(f"Rp must be a numeric scalar, got {type(Rp).__name__}.")
+        tau = (Rs + Rp) / 2.0
+    elif Rs is not None or Rp is not None:
+        raise ValueError("Rs and Rp must both be provided, or neither.")
+    elif tau is None:
+        tau = 1.0
+
+    if not isinstance(tau, (int, float, np.floating, np.integer)):
+        raise TypeError(f"tau must be a numeric scalar, got {type(tau).__name__}.")
+
+    if tau < 0.0:
+        raise ValueError(
+            f"tau must be non-negative, got {tau}. "
+            f"Reflectance cannot be negative."
+        )
+
+    # -------------------------------------------------------------------------
+    # Compute trigonometric terms
+    # -------------------------------------------------------------------------
+    cos_2psi = np.cos(2.0 * psi)
+    sin_2psi = np.sin(2.0 * psi)
+    cos_delta = np.cos(delta)
+    sin_delta = np.sin(delta)
+
+    # -------------------------------------------------------------------------
+    # Build reflector Mueller matrix (no rotation — plane of incidence frame)
+    # Same form as elliptic_retarder at theta = 0
+    # -------------------------------------------------------------------------
+    M = tau * np.array([
+        [1.0,      -cos_2psi,          0.0,                   0.0],
+        [-cos_2psi,     1.0,           0.0,                   0.0],
+        [0.0,           0.0,   sin_2psi * cos_delta,  sin_2psi * sin_delta],
+        [0.0,           0.0,  -sin_2psi * sin_delta,  sin_2psi * cos_delta]
+    ], dtype=np.float64)
+
+    return M

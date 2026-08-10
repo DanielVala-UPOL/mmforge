@@ -6,6 +6,8 @@ and wavelength calibration files from the polarimeter.
 
 Functions
 ---------
+detect_angular_positions(file_paths, n_wavelengths, ...)
+    Auto-detect number of angular positions from binary data file dimensions.
 load_spectral_data(filepath, cfg)
     Load binary spectral measurement data from polarimeter.
 load_wavelengths(cfg)
@@ -123,6 +125,89 @@ class WavelengthInfo:
     range_nm: Tuple[float, float]
     idx_first: int
     idx_last: int
+
+
+# =============================================================================
+# AUTO-DETECT ANGULAR POSITIONS
+# =============================================================================
+
+def detect_angular_positions(
+    file_paths: List[Path],
+    n_wavelengths: int,
+    n_rotation_cycles: int = 1,
+    file_labels: Optional[List[str]] = None,
+) -> int:
+    """
+    Auto-detect the number of angular positions from binary data file dimensions.
+
+    Each binary file contains float32 values with total size:
+        file_size = n_wavelengths x n_angular_positions x n_rotation_cycles x 4 bytes
+
+    Parameters
+    ----------
+    file_paths : list of Path
+        Paths to binary data files to check.
+    n_wavelengths : int
+        Number of wavelength channels (e.g. 2048 for BlackComet).
+    n_rotation_cycles : int
+        Number of rotation cycles per file (default: 1).
+    file_labels : list of str, optional
+        Human-readable labels for error messages (e.g. ['DARK', 'ST', 'P0']).
+
+    Returns
+    -------
+    int
+        Detected number of angular positions per rotation cycle.
+
+    Raises
+    ------
+    ValueError
+        If files have inconsistent dimensions or file sizes are invalid.
+    """
+    bytes_per_value = 4  # float32
+    detected = {}
+
+    for i, path in enumerate(file_paths):
+        label = file_labels[i] if file_labels else path.name
+        file_size = path.stat().st_size
+
+        total_values = file_size // bytes_per_value
+        if file_size % bytes_per_value != 0:
+            raise ValueError(
+                f"File '{label}' size ({file_size} bytes) not divisible by 4. "
+                "File may be corrupted or not in float32 format."
+            )
+
+        n_total_angles = total_values // n_wavelengths
+        remainder = total_values % n_wavelengths
+        if remainder != 0:
+            raise ValueError(
+                f"File '{label}' dimension error: {total_values} values "
+                f"not divisible by {n_wavelengths} wavelengths."
+            )
+
+        if n_total_angles % n_rotation_cycles != 0:
+            raise ValueError(
+                f"File '{label}': inferred {n_total_angles} total angles "
+                f"not divisible by n_rotation_cycles={n_rotation_cycles}."
+            )
+
+        n_angular = n_total_angles // n_rotation_cycles
+        detected[label] = n_angular
+
+    # Check consistency
+    unique_values = set(detected.values())
+    if len(unique_values) > 1:
+        details = ", ".join(f"{k}: {v}" for k, v in detected.items())
+        raise ValueError(
+            f"Inconsistent angular positions across files: {details}. "
+            "All files must have the same number of angular positions."
+        )
+
+    if len(unique_values) == 0:
+        raise ValueError("No valid files provided for angular position detection.")
+
+    return unique_values.pop()
 
 
 # =============================================================================

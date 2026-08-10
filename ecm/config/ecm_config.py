@@ -23,7 +23,7 @@ Example
 >>> cfg = ECMConfig()
 >>>
 >>> # Access nested settings
->>> print(cfg.acquisition.n_angular_positions)  # 96
+>>> print(cfg.acquisition.n_angular_positions)  # None (auto-detected)
 >>> print(cfg.wavelength.range_nm)              # (400.0, 1000.0)
 >>>
 >>> # Modify and save
@@ -97,10 +97,10 @@ class AcquisitionConfig:
 
     Attributes
     ----------
-    n_angular_positions : int
+    n_angular_positions : int or None
         Number of angular positions per full rotation cycle.
-        This is the number of spectra acquired as compensators rotate.
-        Default: 96
+        Auto-detected from data file dimensions during calibration.
+        Default: None (auto-detect).
     n_rotation_cycles : int
         Number of rotation cycles in each measurement file.
         Default: 1
@@ -108,7 +108,7 @@ class AcquisitionConfig:
         Total angular range covered [degrees].
         Default: 360.0
     """
-    n_angular_positions: int = 96
+    n_angular_positions: Optional[int] = None
     n_rotation_cycles: int = 1
     angular_range_deg: float = 360.0
 
@@ -119,6 +119,11 @@ class AcquisitionConfig:
 
         Derived from angular_range_deg / n_angular_positions.
         """
+        if self.n_angular_positions is None:
+            raise RuntimeError(
+                "n_angular_positions has not been set. "
+                "Run calibration or load calibration data first."
+            )
         return self.angular_range_deg / self.n_angular_positions
 
 
@@ -208,6 +213,181 @@ class RetarderCharConfig:
     """
     fp1: str = 'FP1_retardance_deg.txt'
     fp2: str = 'FP2_retardance_deg.txt'
+
+
+@dataclass
+class ReflectionOptConfig:
+    """
+    Reflection-mode reflector characterization optimization settings.
+
+    Controls the bounded per-wavelength optimization that minimizes the
+    eigenvalue ratio λ₁₆/λ₁₅ by adjusting 8 parameters: δψ₁, δΔ₁, δR₁,
+    δψ₂, δΔ₂, δR₂, τ_pol, δθ_pol.
+
+    Attributes
+    ----------
+    optimize : bool
+        Whether to run the reflector optimization. When False, the
+        calibration uses the raw Woollam characterization without correction.
+        Default: True
+    psi1_bound_deg : float
+        Max offset for reflector 1 psi [degrees]. Default: 4.0
+    delta1_bound_deg : float
+        Max offset for reflector 1 delta [degrees]. Default: 12.0
+    R1_bound_frac : float
+        Max fractional offset for reflector 1 unpolarized reflectance
+        R₁ = (Rs₁+Rp₁)/2 (±fraction of nominal). Default: 0.02 (±2%)
+    psi2_bound_deg : float
+        Max offset for reflector 2 psi [degrees]. Default: 2.0
+    delta2_bound_deg : float
+        Max offset for reflector 2 delta [degrees]. Default: 6.0
+    R2_bound_frac : float
+        Max fractional offset for reflector 2 unpolarized reflectance
+        R₂ = (Rs₂+Rp₂)/2 (±fraction of nominal). Default: 0.02 (±2%)
+    tau_pol_min : float
+        Lower bound for polarizer transmittance. Default: 0.3
+    tau_pol_max : float
+        Upper bound for polarizer transmittance. Default: 0.97
+    tau_pol_start : float
+        Starting value for polarizer transmittance. Default: 0.45
+    theta_pol_bound_deg : float
+        Max polarizer azimuth offset [degrees]. Default: 4.0
+    multistart_threshold : float
+        Eigenvalue ratio threshold for multi-start re-optimization.
+        Wavelengths with ratio > threshold are re-optimized with multiple
+        random starts. Default: 0.01.
+    multistart_n_starts : int
+        Number of additional random starts for multi-start. Default: 3.
+    enable_regularization : bool
+        Enable Tikhonov spectral smoothness regularization (optional,
+        post-processing step). Default: False.
+    regularization_weight : float
+        Weight for spectral smoothness penalty. Default: 0.1.
+    """
+    optimize: bool = True
+    psi1_bound_deg: float = 4.0
+    delta1_bound_deg: float = 12.0
+    R1_bound_frac: float = 0.02
+    psi2_bound_deg: float = 2.0
+    delta2_bound_deg: float = 6.0
+    R2_bound_frac: float = 0.02
+    tau_pol_min: float = 0.3
+    tau_pol_max: float = 0.97
+    tau_pol_start: float = 0.45
+    theta_pol_bound_deg: float = 4.0
+    multistart_threshold: float = 0.01
+    multistart_n_starts: int = 3
+    enable_regularization: bool = False
+    regularization_weight: float = 0.1
+
+
+@dataclass
+class ThicknessFitConfig:
+    """
+    Physics-informed reflection calibration settings (TMM thickness fitting).
+
+    Extracts real wafer thicknesses and angle of incidence from the initial
+    optimization results using TMM fitting (differential_evolution), then
+    re-runs the per-wavelength optimization with the improved TMM baseline
+    and tighter bounds.
+
+    Three-step process:
+      1. Initial per-wavelength optimization (Woollam nominal baseline)
+      2. Physics extraction (d1, d2, delta_AOI) from effective curves
+      3. Refined per-wavelength optimization (TMM baseline + tighter bounds)
+
+    Attributes
+    ----------
+    enable_thickness_fit : bool
+        Enable physics-informed TMM calibration. Default: True.
+    d1_start_nm : float
+        Reflector 1 SiO2 starting thickness [nm]. Default: 25.0.
+    d2_start_nm : float
+        Reflector 2 SiO2 starting thickness [nm]. Default: 10.0.
+    d1_bounds_nm : Tuple[float, float]
+        Reflector 1 thickness bounds [nm]. Default: (15.0, 35.0).
+    d2_bounds_nm : Tuple[float, float]
+        Reflector 2 thickness bounds [nm]. Default: (5.0, 15.0).
+    d_interlayer_nm : float
+        Fixed interlayer thickness [nm]. Default: 1.0. Do NOT fit.
+    delta_aoi_bound_deg : float
+        AOI correction bound for TMM fitting [degrees]. Default: 3.0.
+    stage2_psi1_bound_deg : float
+        Tighter psi1 bound for refined optimization pass [degrees]. Default: 3.0.
+    stage2_delta1_bound_deg : float
+        Tighter Delta1 bound for refined optimization pass [degrees]. Default: 5.0.
+    stage2_psi2_bound_deg : float
+        Tighter psi2 bound for refined optimization pass [degrees]. Default: 2.0.
+    stage2_delta2_bound_deg : float
+        Tighter Delta2 bound for refined optimization pass [degrees]. Default: 5.0.
+    """
+    enable_thickness_fit: bool = True
+    d1_start_nm: float = 25.0
+    d2_start_nm: float = 10.0
+    d1_bounds_nm: Tuple[float, float] = (15.0, 35.0)
+    d2_bounds_nm: Tuple[float, float] = (5.0, 15.0)
+    d_interlayer_nm: float = 1.0
+    delta_aoi_bound_deg: float = 3.0
+    stage2_psi1_bound_deg: float = 3.0
+    stage2_delta1_bound_deg: float = 5.0
+    stage2_psi2_bound_deg: float = 2.0
+    stage2_delta2_bound_deg: float = 5.0
+
+
+@dataclass
+class ReflectionCalConfig:
+    """
+    Reflection-mode calibration settings.
+
+    Attributes
+    ----------
+    angle_of_incidence_deg : float
+        Angle of incidence for reflection measurements [degrees].
+        Determines which column to extract from characterization files.
+        Default: 65.0
+    polarizer_azimuth_deg : float
+        Fixed polarizer azimuth used in POL_BEFORE/POL_AFTER measurements [degrees].
+        Default: 45.0
+    wafer25nm_label : str
+        Filename prefix for wafer 25 nm characterization asset lookup.
+        Default: '25nm'
+    wafer10nm_label : str
+        Filename prefix for wafer 10 nm characterization asset lookup.
+        Default: '10nm'
+    aoi_range_deg : Tuple[float, float]
+        Range of AOI values in characterization files [degrees].
+        Default: (55.0, 75.0)
+    aoi_step_deg : float
+        AOI step size in characterization files [degrees].
+        Default: 1.0
+    optimization : ReflectionOptConfig
+        Wafer characterization optimization settings.
+        Default: ReflectionOptConfig()
+    thickness_fit : ThicknessFitConfig
+        Physics-informed TMM calibration settings.
+        Default: ThicknessFitConfig()
+    """
+    angle_of_incidence_deg: float = 65.0
+    polarizer_azimuth_deg: float = 45.0
+    wafer25nm_label: str = '25nm'
+    wafer10nm_label: str = '10nm'
+    aoi_range_deg: Tuple[float, float] = (55.0, 75.0)
+    aoi_step_deg: float = 1.0
+    optimization: ReflectionOptConfig = field(default_factory=ReflectionOptConfig)
+    thickness_fit: ThicknessFitConfig = field(default_factory=ThicknessFitConfig)
+
+    @property
+    def aoi_column_indices(self) -> Tuple[int, int]:
+        """0-based column indices in characterization files for configured AOI.
+
+        Returns (col_psi_or_Rp, col_delta_or_Rs). For AOI=65 with range
+        55-75 in 1-degree steps: returns (21, 22).
+        """
+        offset = int(
+            (self.angle_of_incidence_deg - self.aoi_range_deg[0])
+            / self.aoi_step_deg
+        )
+        return 1 + offset * 2, 2 + offset * 2
 
 
 @dataclass
@@ -558,6 +738,7 @@ class ECMConfig:
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     figure: FigureConfig = field(default_factory=FigureConfig)
+    reflection_cal: ReflectionCalConfig = field(default_factory=ReflectionCalConfig)
 
     def __post_init__(self) -> None:
         """
@@ -679,14 +860,16 @@ class ECMConfig:
 
         # Check angular positions sufficient for Fourier analysis
         # Need at least 2x the maximum harmonic (Nyquist)
-        min_positions = 2 * self.fourier.max_harmonic
-        if self.acquisition.n_angular_positions < min_positions:
-            warnings.warn(
-                f"Angular positions ({self.acquisition.n_angular_positions}) may be "
-                f"insufficient for harmonic {self.fourier.max_harmonic}. "
-                f"Need >= {min_positions}.",
-                UserWarning
-            )
+        # Skip if n_angular_positions is None (will be auto-detected later)
+        if self.acquisition.n_angular_positions is not None:
+            min_positions = 2 * self.fourier.max_harmonic
+            if self.acquisition.n_angular_positions < min_positions:
+                warnings.warn(
+                    f"Angular positions ({self.acquisition.n_angular_positions}) may be "
+                    f"insufficient for harmonic {self.fourier.max_harmonic}. "
+                    f"Need >= {min_positions}.",
+                    UserWarning
+                )
 
         # Check wavelength range is valid
         wl_min, wl_max = self.wavelength.range_nm
@@ -711,6 +894,15 @@ class ECMConfig:
                 f"Must be one of: {valid_methods}"
             )
 
+        # Check reflection AOI is within characterization range
+        aoi = self.reflection_cal.angle_of_incidence_deg
+        aoi_min, aoi_max = self.reflection_cal.aoi_range_deg
+        if not (aoi_min <= aoi <= aoi_max):
+            raise ValueError(
+                f"Reflection AOI ({aoi}°) is outside characterization range "
+                f"({aoi_min}°–{aoi_max}°)."
+            )
+
         # Verify calibration samples exist
         required_samples = ('pol_0', 'pol_45', 'ret_90', 'ret_45')
         for sample in required_samples:
@@ -720,6 +912,58 @@ class ECMConfig:
                     f"This may cause issues during calibration.",
                     UserWarning
                 )
+
+    def validate_paths(self, base_dir: Optional[Path] = None) -> List[str]:
+        """
+        Validate that configured paths exist on disk.
+
+        Checks for characterization files, wavelength file, and data
+        directories. Returns a list of warning messages for any missing
+        paths.
+
+        Parameters
+        ----------
+        base_dir : Path, optional
+            Base directory to resolve relative paths against.
+            Default: project root (auto-detected).
+
+        Returns
+        -------
+        warnings_list : List[str]
+            Warning messages for missing paths (empty if all OK).
+        """
+        warns: List[str] = []
+
+        # Wavelength file
+        wl_file = self.spectrometer.wavelength_file
+        if wl_file is not None and not Path(wl_file).exists():
+            warns.append(f"Wavelength file not found: {wl_file}")
+
+        # Assets directory
+        if self.paths.assets_dir is not None and not Path(self.paths.assets_dir).exists():
+            warns.append(f"Assets directory not found: {self.paths.assets_dir}")
+
+        # Retarder characterization files
+        if self.paths.assets_dir is not None and Path(self.paths.assets_dir).exists():
+            assets = Path(self.paths.assets_dir)
+            fp1 = assets / self.paths.retarder_char.fp1
+            fp2 = assets / self.paths.retarder_char.fp2
+            if not fp1.exists():
+                warns.append(f"Retarder FP1 file not found: {fp1}")
+            if not fp2.exists():
+                warns.append(f"Retarder FP2 file not found: {fp2}")
+
+        # Calibration data directories
+        if self.mode == 'transmission':
+            cal_dir = self.paths.calibration_transmission_dir
+            if cal_dir is not None and not Path(cal_dir).exists():
+                warns.append(f"Transmission calibration directory not found: {cal_dir}")
+        elif self.mode == 'reflection':
+            cal_dir = self.paths.calibration_reflection_dir
+            if cal_dir is not None and not Path(cal_dir).exists():
+                warns.append(f"Reflection calibration directory not found: {cal_dir}")
+
+        return warns
 
     # =========================================================================
     # SERIALIZATION METHODS
@@ -922,6 +1166,7 @@ class ECMConfig:
             'processing': ProcessingConfig,
             'output': OutputConfig,
             'figure': FigureConfig,
+            'reflection_cal': ReflectionCalConfig,
         }
 
         for field_name, field_class in nested_fields.items():

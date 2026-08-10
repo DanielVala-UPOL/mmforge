@@ -32,14 +32,25 @@ from utils.session_state import (
     get_calibration_result,
     get_calibration_diagnostics,
     set_config,
-    get_config
+    get_config,
+    is_reflection_calibrated,
+    set_reflection_calibration,
+    clear_reflection_calibration,
+    get_reflection_calibration_result,
+    get_reflection_calibration_diagnostics,
+    has_any_calibration,
+    full_session_reset,
 )
 from utils.styling import inject_custom_css, soft_divider
 
 # ECM imports
 from ecm.config import ECMConfig
 from ecm.core import calibrate_transmission
-from ecm.core.file_discovery import discover_calibration_files
+from ecm.core.reflection_calibration import calibrate_reflection
+from ecm.core.file_discovery import (
+    discover_calibration_files,
+    discover_reflection_calibration_files,
+)
 from ecm.io import save_calibration, load_calibration
 
 
@@ -77,36 +88,68 @@ render_sidebar()
 
 def build_config_from_session() -> ECMConfig:
     """
-    Build ECMConfig from current session state values.
+    Build a transmission-mode ECMConfig from current session state values.
 
-    Maps UI configuration values to the ECMConfig dataclass structure.
+    Used for Transmission and Tutorial Data modes. For Reflection mode use
+    :func:`build_reflection_config_from_session`.
     """
-    # Get values from session state with defaults
-    mode = st.session_state.get('calibration_mode', 'Transmission')
-    if mode == 'Reflection':
-        data_dir = st.session_state.get('reflection_dir_path', '')
-    else:
-        # Transmission, Tutorial Data, and Combined (transmission pass)
-        data_dir = st.session_state.get('data_dir_path', '')
+    data_dir = st.session_state.get('data_dir_path', '')
     output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'calibration_output'))
     wl_min = st.session_state.get('wl_min', 400)
     wl_max = st.session_state.get('wl_max', 1000)
-    n_positions = st.session_state.get('n_positions', 96)
 
-    # Create config with overridden values
     cfg = ECMConfig()
+    cfg.mode = 'transmission'
 
-    # Override paths
     if data_dir:
         cfg.paths.data_dir = Path(data_dir)
     cfg.paths.calibration_output_dir = Path(output_dir)
 
-    # Override wavelength settings
     cfg.wavelength.range_nm = (float(wl_min), float(wl_max))
-    cfg.wavelength.reference_nm = 633.0  # Hardcoded
+    cfg.wavelength.reference_nm = 633.0
 
-    # Override acquisition settings
-    cfg.acquisition.n_angular_positions = n_positions
+    # Leave cfg.acquisition.n_angular_positions = None — backend auto-detects.
+    return cfg
+
+
+def build_reflection_config_from_session() -> ECMConfig:
+    """
+    Build a reflection-mode ECMConfig from current session state values.
+
+    Pulls reflection data dir, AOI, output dir, and wavelength range from
+    session state. The wafer-characterization (assets) directory is fixed
+    to the bundled ``data/assets/`` folder shipped with MMForge — no user
+    input required. The reflection-optimization and TMM-thickness-fit
+    parameters use the recommended defaults from
+    ``ReflectionOptConfig`` / ``ThicknessFitConfig`` (the same values used
+    by ECM-PURE); they are baked in, not exposed in the UI. Leaves
+    ``n_angular_positions`` as None so the backend auto-detects.
+    """
+    refl_data_dir = st.session_state.get('refl_data_dir_path', '')
+    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'calibration_output'))
+    aoi_deg = float(st.session_state.get('refl_aoi_deg', 70.0))
+    wl_min = st.session_state.get('wl_min', 400)
+    wl_max = st.session_state.get('wl_max', 1000)
+
+    # Bundled assets directory (data/assets/ at the project root)
+    bundled_assets = Path(__file__).parent.parent.parent / 'data' / 'assets'
+
+    cfg = ECMConfig()
+    cfg.mode = 'reflection'
+
+    if refl_data_dir:
+        cfg.paths.calibration_reflection_dir = Path(refl_data_dir)
+        # Also set data_dir so sample discovery can find reflection samples
+        # in the same directory (page 3 uses cfg.paths.data_dir for fallback).
+        cfg.paths.data_dir = Path(refl_data_dir)
+
+    cfg.paths.assets_dir = bundled_assets
+    cfg.spectrometer.wavelength_file = bundled_assets / 'BlackCommet_wavelengths.txt'
+    cfg.paths.calibration_output_dir = Path(output_dir)
+
+    cfg.reflection_cal.angle_of_incidence_deg = aoi_deg
+    cfg.wavelength.range_nm = (float(wl_min), float(wl_max))
+    cfg.wavelength.reference_nm = 633.0
 
     return cfg
 
@@ -165,30 +208,95 @@ def discover_and_display_files():
         return None
 
 
+def discover_reflection_files_and_display():
+    """Discover reflection calibration + wafer characterization files and display."""
+    cfg = build_reflection_config_from_session()
+
+    if cfg.paths.calibration_reflection_dir is None:
+        st.error("Reflection data directory not set. Go to **CONFIGURATION** page and enter the path to your reflection calibration data folder.")
+        return None
+    if cfg.paths.assets_dir is None:
+        st.error("Wafer characterization (assets) directory not set. Go to **CONFIGURATION** page and enter the path to the Woollam VASE files.")
+        return None
+
+    try:
+        with st.spinner("Discovering reflection files..."):
+            refl_files = discover_reflection_calibration_files(cfg)
+
+        st.session_state['refl_discovered_files'] = refl_files
+        display_reflection_discovered_files(refl_files)
+        st.success("Found all reflection calibration files and wafer characterization assets.")
+        return refl_files
+
+    except FileNotFoundError as e:
+        st.error(f"Missing reflection file: {e}")
+        return None
+    except ValueError as e:
+        st.error(f"Ambiguous reflection file match: {e}")
+        return None
+    except Exception as e:
+        st.error(f"Unexpected error during reflection file discovery: {e}")
+        return None
+
+
+def display_reflection_discovered_files(refl_files) -> None:
+    """Display the 5 user-supplied reflection calibration measurement files.
+
+    The Woollam Ψ/Δ and Rp/Rs wafer characterization files live in the
+    bundled ``data/assets/`` directory; they are auto-discovered and used
+    by the backend but not part of the user-facing file list.
+    """
+    st.markdown("**Reflection Calibration Files**")
+    measurement_rows = [
+        ("DARK", refl_files.dark),
+        ("WAFER 25 nm (bare)", refl_files.wafer25nm),
+        ("WAFER 25 nm + Pol BEFORE", refl_files.wafer25nm_pol_before),
+        ("WAFER 25 nm + Pol AFTER", refl_files.wafer25nm_pol_after),
+        ("WAFER 10 nm (bare)", refl_files.wafer10nm),
+    ]
+    for name, path in measurement_rows:
+        cols = st.columns([2, 5])
+        cols[0].write(f"**{name}**")
+        cols[1].write(Path(path).name if path is not None else "—")
+
+
 def display_discovered_files(cal_files) -> bool:
     """
-    Display discovered files status.
-
-    Returns True if all required files found, False otherwise.
+    Display discovered files in the same tabular layout as the reflection
+    discovery (label on the left, filename on the right). Returns True if
+    all required files found, False otherwise.
     """
     file_info = [
-        ("DARK", cal_files.dark, True),
-        ("ST", cal_files.air, True),
-        ("P0", cal_files.pol_0, True),
-        ("P45", cal_files.pol_45, True),
-        ("FP1", cal_files.ret_90, True),
-        ("FP2", cal_files.ret_45, False),
+        ("Background (DARK)", cal_files.dark, True),
+        ("Air, straight-through (ST)", cal_files.air, True),
+        ("Polarizer 0° (P0)", cal_files.pol_0, True),
+        ("Polarizer 45° (P45)", cal_files.pol_45, True),
+        ("Retarder 90° (FP1)", cal_files.ret_90, True),
+        ("Retarder 45° (FP2, optional)", cal_files.ret_45, False),
     ]
 
-    # Count found and missing required files
     required_found = sum(1 for _, path, req in file_info if req and path is not None)
     required_total = sum(1 for _, _, req in file_info if req)
     missing_required = [name for name, path, req in file_info if req and path is None]
 
-    # Display error if missing required files (success shown after auto-detect)
+    st.markdown("**Transmission Calibration Files**")
+    for name, path, req in file_info:
+        cols = st.columns([2, 5])
+        cols[0].write(f"**{name}**")
+        if path is not None:
+            cols[1].write(Path(path).name)
+        elif req:
+            cols[1].markdown(":red[— missing —]")
+        else:
+            cols[1].write("—")
+
     if required_found < required_total:
         missing_str = ", ".join(missing_required)
-        st.error(f"Missing calibration files: **{missing_str}**. Found {required_found}/{required_total} required files. Check that all calibration .bin files are in the data directory.")
+        st.error(
+            f"Missing required calibration files: **{missing_str}**. "
+            f"Found {required_found}/{required_total} required. "
+            "Check that all calibration .bin files are in the data directory."
+        )
         return False
 
     return True
@@ -198,93 +306,94 @@ def detect_rotator_steps(cal_files) -> int | None:
     """
     Auto-detect rotator steps from calibration file dimensions.
 
-    Binary files are float32 (4 bytes per value) with shape [n_angles, n_wavelengths].
+    Thin wrapper around :func:`ecm.utils.io.detect_angular_positions` that
+    converts backend ``ValueError`` into a Streamlit error message.
 
     Returns
     -------
     n_positions : int or None
         Detected number of rotator steps, or None on error.
     """
-    import os
+    from ecm.utils.io import detect_angular_positions
 
-    # Spectrometer has 2048 wavelength channels
     n_wavelengths = st.session_state.get('n_wavelengths', 2048)
-    bytes_per_value = 4  # float32
 
-    # Collect all discovered file paths (excluding None)
-    files_to_check = [
-        ("DARK", cal_files.dark),
-        ("ST", cal_files.air),
-        ("P0", cal_files.pol_0),
-        ("P45", cal_files.pol_45),
-        ("RET90_FP1", cal_files.ret_90),
+    paths = [
+        cal_files.dark, cal_files.air,
+        cal_files.pol_0, cal_files.pol_45, cal_files.ret_90,
     ]
+    labels = ['DARK', 'ST', 'P0', 'P45', 'RET90_FP1']
     if cal_files.ret_45 is not None:
-        files_to_check.append(("RET45_FP2", cal_files.ret_45))
+        paths.append(cal_files.ret_45)
+        labels.append('RET45_FP2')
 
-    detected_steps = {}
-
-    for name, path in files_to_check:
-        if path is None:
-            continue
-        try:
-            file_size = os.path.getsize(path)
-            total_values = file_size // bytes_per_value
-
-            if total_values % n_wavelengths != 0:
-                st.error(f"File dimension error: {name} file size ({file_size} bytes) is not compatible with {n_wavelengths} wavelengths.")
-                return None
-
-            n_angles = total_values // n_wavelengths
-            detected_steps[name] = n_angles
-
-        except Exception as e:
-            st.error(f"Error reading {name} file: {e}")
-            return None
-
-    # Check consistency across all files
-    unique_steps = set(detected_steps.values())
-
-    if len(unique_steps) > 1:
-        mismatch_details = ", ".join([f"{name}: {steps}" for name, steps in detected_steps.items()])
-        st.error(f"Dimension mismatch across calibration files: {mismatch_details}. All files must have the same number of rotator steps.")
+    try:
+        return detect_angular_positions(
+            paths, n_wavelengths,
+            n_rotation_cycles=1,
+            file_labels=labels,
+        )
+    except ValueError as e:
+        st.error(str(e))
         return None
-
-    if len(unique_steps) == 0:
-        st.error("No valid calibration files found to detect rotator steps.")
-        return None
-
-    return unique_steps.pop()
 
 
 def run_calibration_workflow():
-    """Execute ECM calibration with progress display."""
-    # Check calibration mode
-    if st.session_state.get('calibration_mode', 'Transmission') != 'Transmission':
-        st.warning("Only Transmission mode is currently supported. Please select Transmission mode in Configuration.")
-        return
+    """Dispatch calibration to the right backend based on calibration_mode."""
+    mode = st.session_state.get('calibration_mode', 'Transmission')
+    if mode in ('Transmission', 'Tutorial Data'):
+        run_transmission_workflow()
+    elif mode == 'Reflection':
+        run_reflection_workflow()
+    else:
+        st.error(f"Unknown calibration mode: '{mode}'. Choose Transmission, Reflection, or Tutorial Data.")
 
+
+def run_transmission_workflow():
+    """Execute transmission ECM calibration with step + progress display.
+
+    Mirrors the reflection workflow's three-line layout:
+      * ``Steps [k/total] completed.`` — completion counter
+      * ``Step [n/total]: <name>`` — current step label
+      * progress bar — fills during the per-wavelength final K/W/A solve;
+        sits at 0% during the fast early steps.
+    """
     cfg = build_config_from_session()
 
-    # Initialize progress elements - centered and wider
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        completed_container = st.empty()
+        step_container = st.empty()
         progress_container = st.empty()
         progress_bar = progress_container.progress(0, text="0%")
 
+    def step_callback(step_idx, total_steps, label):
+        # When step_idx begins, step_idx − 1 steps are now complete.
+        completed_container.markdown(
+            f"_Steps [{step_idx - 1}/{total_steps}] completed._"
+        )
+        step_container.markdown(
+            f"**Step [{step_idx}/{total_steps}]:** {label}"
+        )
+        progress_bar.progress(0, text="0%")
+
     def progress_callback(current_wl, total_wl, eigenvalue_ratio):
-        """Update Streamlit progress bar - only show percentage."""
-        progress = current_wl / total_wl
-        progress_bar.progress(progress, text=f"{int(progress * 100)}%")
+        if total_wl > 0:
+            progress = current_wl / total_wl
+            progress_bar.progress(progress, text=f"{int(progress * 100)}%")
 
     try:
-        result, diagnostics = calibrate_transmission(cfg, progress_callback)
+        result, diagnostics = calibrate_transmission(
+            cfg,
+            progress_callback=progress_callback,
+            step_callback=step_callback,
+        )
 
-        # Update session state
         set_calibration(result, diagnostics)
         set_config(cfg)
 
-        # Clear progress elements
+        completed_container.empty()
+        step_container.empty()
         progress_container.empty()
 
         st.success(
@@ -293,16 +402,111 @@ def run_calibration_workflow():
             f"Mean eigenvalue ratio: {np.mean(diagnostics.eigenvalue_ratio):.2e}"
         )
 
-        # Trigger rerun to update display
         st.rerun()
 
     except Exception as e:
+        completed_container.empty()
+        step_container.empty()
         progress_container.empty()
         st.error(f"Calibration failed: {e}. Check that calibration files are valid and not corrupted.")
 
 
-def display_quality_summary(diagnostics, result):
-    """Display quality breakdown with metrics, chart, and eigenvalue plot."""
+def run_reflection_workflow():
+    """Execute reflection ECM calibration with step + progress display.
+
+    The reflection calibration is multi-stage and can take a couple of
+    minutes. We surface three pieces of feedback, stacked top-to-bottom:
+
+    * A *completed counter* — ``Steps [k/total] completed.`` — k ticks up
+      every time a new step begins, so the user can watch the fast early
+      steps fly by.
+    * A *current step indicator* — ``Step [n/total]: <name>`` — updated
+      at the start of each major stage by the backend's ``step_callback``.
+    * A *progress bar* showing per-wavelength progress within the heavy
+      stages (wafer optimization, refined optimization, final K/W/A
+      solve). Non-per-wavelength stages reset the bar to 0% and rely on
+      the step name for "what's happening now" feedback.
+    """
+    cfg = build_reflection_config_from_session()
+
+    # Re-run discovery defensively in case Discover Files wasn't pressed.
+    try:
+        refl_files = discover_reflection_calibration_files(cfg)
+        st.session_state['refl_discovered_files'] = refl_files
+    except (FileNotFoundError, ValueError) as e:
+        st.error(f"Reflection file discovery failed: {e}")
+        return
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        completed_container = st.empty()
+        step_container = st.empty()
+        progress_container = st.empty()
+        progress_bar = progress_container.progress(0, text="0%")
+
+    # Track the parent step index so multi-start sub-phases don't bump
+    # the completed counter (they share the parent step's index).
+    last_parent_step = {'value': 0, 'total': 0}
+
+    def step_callback(step_idx, total_steps, label):
+        # When step_idx begins, step_idx − 1 steps are now complete.
+        # Only update the completed counter when we advance to a new
+        # parent step — multi-start sub-phases reuse the parent's index
+        # and should not change the count.
+        if step_idx != last_parent_step['value']:
+            completed_container.markdown(
+                f"_Steps [{step_idx - 1}/{total_steps}] completed._"
+            )
+            last_parent_step['value'] = step_idx
+            last_parent_step['total'] = total_steps
+
+        step_container.markdown(
+            f"**Step [{step_idx}/{total_steps}]:** {label}"
+        )
+        progress_bar.progress(0, text="0%")
+
+    def progress_callback(current_wl, total_wl, eigenvalue_ratio):
+        if total_wl > 0:
+            progress = current_wl / total_wl
+            progress_bar.progress(
+                progress, text=f"{int(progress * 100)}%"
+            )
+
+    try:
+        result, diagnostics = calibrate_reflection(
+            cfg,
+            progress_callback=progress_callback,
+            step_callback=step_callback,
+        )
+
+        set_reflection_calibration(result, diagnostics)
+        set_config(cfg)
+
+        completed_container.empty()
+        step_container.empty()
+        progress_container.empty()
+
+        st.success(
+            f"Reflection calibration complete! "
+            f"{len(result.wavelengths)} wavelengths calibrated. "
+            f"Mean eigenvalue ratio: {np.mean(diagnostics.eigenvalue_ratio):.2e}"
+        )
+
+        st.rerun()
+
+    except Exception as e:
+        completed_container.empty()
+        step_container.empty()
+        progress_container.empty()
+        st.error(f"Reflection calibration failed: {e}. Check that wafer files and characterization assets are valid.")
+
+
+def display_quality_summary(diagnostics, result, is_reflection: bool = False):
+    """Display quality breakdown with metrics, chart, and eigenvalue plot.
+
+    In reflection mode, also shows the TMM physics fit results
+    (d₁, d₂, δAOI, AOI used) inside the summary.
+    """
     ratio = diagnostics.eigenvalue_ratio
     n_total = len(ratio)
     quality = calculate_quality_breakdown(ratio)
@@ -316,6 +520,10 @@ def display_quality_summary(diagnostics, result):
     col2.metric("Mean Quality", f"{np.mean(ratio):.2e}")
     col3.metric("Median Quality", f"{np.median(ratio):.2e}")
     col4.metric("≥Good (%)", f"{100 * good_or_better / n_total:.1f}%")
+
+    # ----- Reflection-only: TMM physics fit + optimization summary -----
+    if is_reflection:
+        _display_reflection_physics(diagnostics)
 
     # Detailed breakdown table
     st.markdown("**Quality Distribution:**")
@@ -354,18 +562,87 @@ def display_quality_summary(diagnostics, result):
     st.plotly_chart(fig, use_container_width=True)
 
 
+def _display_reflection_physics(diagnostics) -> None:
+    """Reflection-only block inside the Quality Summary.
+
+    Shows the TMM thickness fit: ``d1`` (nominal 25 nm, Woollam range
+    20–25 nm), ``d2`` (nominal 10 nm, Woollam range 9–11 nm), AOI
+    correction ``δAOI`` and the resulting effective AOI. Each thickness
+    card carries a small status caption indicating whether the fitted
+    value falls inside the Woollam tolerance range, so the user can spot
+    unphysical fits at a glance.
+    """
+    # Woollam-measured tolerance bands for the two reference wafers.
+    # Values come from the original Woollam VASE characterization of the
+    # bundled reference samples.
+    WOOLLAM_D1_RANGE = (20.0, 25.0)  # 25 nm wafer
+    WOOLLAM_D2_RANGE = (9.0, 11.0)   # 10 nm wafer
+
+    def _range_caption(value: float, low: float, high: float) -> str:
+        if low <= value <= high:
+            return f":green[✓ Within Woollam range ({low:g}–{high:g} nm)]"
+        return f":red[⚠ Outside Woollam range ({low:g}–{high:g} nm)]"
+
+    tr = getattr(diagnostics, 'thickness_result', None)
+    if tr is not None:
+        pr = tr.physics_result
+        st.markdown("**Reflection physics (TMM fit)**")
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "d₁ — 25 nm wafer",
+            f"{pr.d1_fitted_nm:.2f} nm",
+            delta=f"{pr.d1_fitted_nm - 25.0:+.2f} nm vs nominal",
+            delta_color="off",
+        )
+        c1.caption(_range_caption(pr.d1_fitted_nm, *WOOLLAM_D1_RANGE))
+
+        c2.metric(
+            "d₂ — 10 nm wafer",
+            f"{pr.d2_fitted_nm:.2f} nm",
+            delta=f"{pr.d2_fitted_nm - 10.0:+.2f} nm vs nominal",
+            delta_color="off",
+        )
+        c2.caption(_range_caption(pr.d2_fitted_nm, *WOOLLAM_D2_RANGE))
+
+        c3.metric(
+            "δAOI (correction)",
+            f"{pr.delta_aoi_fitted_deg:+.2f}°",
+        )
+        c4.metric(
+            "AOI (effective)",
+            f"{pr.aoi_fitted_deg:.2f}°",
+        )
+    else:
+        # No TMM step ran → at least show convergence
+        opt = getattr(diagnostics, 'optimization_result', None)
+        if opt is not None:
+            converged_pct = float(np.mean(opt.converged) * 100.0)
+            st.markdown("**Reflection physics**")
+            st.metric("Wafer optimization converged", f"{converged_pct:.1f}%")
+
+
 def save_current_calibration():
-    """Save current calibration to file."""
-    result = get_calibration_result()
-    diagnostics = get_calibration_diagnostics()
+    """Save the calibration matching the current mode to file."""
+    mode = st.session_state.get('calibration_mode', 'Transmission')
+    if mode == 'Reflection':
+        result = get_reflection_calibration_result()
+        diagnostics = get_reflection_calibration_diagnostics()
+    else:
+        result = get_calibration_result()
+        diagnostics = get_calibration_diagnostics()
+
     cfg = get_config()
 
     if result is None or diagnostics is None:
-        st.error("No calibration data available. Run calibration first before saving.")
+        st.error("No calibration data available for this mode. Run calibration first before saving.")
         return
 
     if cfg is None:
-        cfg = build_config_from_session()
+        if mode == 'Reflection':
+            cfg = build_reflection_config_from_session()
+        else:
+            cfg = build_config_from_session()
 
     output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'calibration_output'))
 
@@ -384,7 +661,7 @@ def save_current_calibration():
 
 
 def load_calibration_from_file(filepath: str):
-    """Load calibration from file and update session state."""
+    """Load calibration from file and dispatch state by saved mode."""
     try:
         with st.spinner("Loading calibration..."):
             result, diagnostics, cfg, metadata = load_calibration(
@@ -392,12 +669,26 @@ def load_calibration_from_file(filepath: str):
                 verbose=False
             )
 
-        # Update session state
-        set_calibration(result, diagnostics)
-        set_config(cfg)
+        saved_mode = metadata.mode
+        if saved_mode == 'reflection':
+            set_reflection_calibration(result, diagnostics)
+            set_config(cfg)
+            # Repopulate the reflection session-state keys from the loaded cfg
+            # so the Configuration page reflects the loaded state. The assets
+            # dir is bundled with MMForge — no need to restore it from the file.
+            if cfg.paths.calibration_reflection_dir is not None:
+                st.session_state['refl_data_dir_path'] = str(cfg.paths.calibration_reflection_dir)
+            st.session_state['refl_aoi_deg'] = float(cfg.reflection_cal.angle_of_incidence_deg)
+            st.session_state['calibration_mode'] = 'Reflection'
+        else:
+            # Default to transmission for unknown / legacy 'transmission' values
+            set_calibration(result, diagnostics)
+            set_config(cfg)
+            if saved_mode != 'transmission':
+                st.warning(f"Unknown saved mode '{saved_mode}', treated as Transmission.")
 
         st.success(
-            f"Loaded calibration from {metadata.timestamp}\n\n"
+            f"Loaded {saved_mode} calibration from {metadata.timestamp}\n\n"
             f"Wavelengths: {metadata.n_wavelengths}, "
             f"Range: {metadata.wavelength_range[0]:.0f}-{metadata.wavelength_range[1]:.0f} nm"
         )
@@ -417,25 +708,53 @@ def load_calibration_from_file(filepath: str):
 def main():
     st.title("Calibration")
 
+    mode = st.session_state.get('calibration_mode', 'Transmission')
+    is_reflection_mode = (mode == 'Reflection')
+
+    # Mode-dependent state lookups
+    if is_reflection_mode:
+        mode_is_calibrated = is_reflection_calibrated()
+        active_result = get_reflection_calibration_result()
+        active_diagnostics = get_reflection_calibration_diagnostics()
+        data_dir = st.session_state.get('refl_data_dir_path', '')
+        discovered_key = 'refl_discovered_files'
+        data_dir_label = "Reflection Data Directory"
+        discover_button_label = "Discover Files (Reflection)"
+        missing_dir_hint = "Set the Reflection Data Directory in Configuration first"
+    else:
+        mode_is_calibrated = is_calibrated()
+        active_result = get_calibration_result()
+        active_diagnostics = get_calibration_diagnostics()
+        data_dir = st.session_state.get('data_dir_path', '')
+        discovered_key = 'discovered_files'
+        data_dir_label = "Transmission Data Directory"
+        discover_button_label = "Discover Files (Transmission)"
+        missing_dir_hint = "Set the Transmission Data Directory in Configuration first"
+
     # -------------------------------------------------
     # Calibration Files Section - full width file list
     # -------------------------------------------------
-    with st.expander("Calibration Files", expanded=not is_calibrated()):
-        st.markdown("Discover calibration files in your data directory.")
+    with st.expander("Calibration Files", expanded=not mode_is_calibrated):
+        st.markdown(f"Discover calibration files in your {data_dir_label.lower()}.")
 
-        data_dir = st.session_state.get('data_dir_path', '')
+        # Discovery only depends on the active mode's data dir. The wafer
+        # characterization (assets) dir is bundled with MMForge so it never
+        # blocks the Reflection discover button.
         discover_disabled = not data_dir
 
         if st.button(
-            "Discover Files",
+            discover_button_label,
             use_container_width=False,
             disabled=discover_disabled,
-            help="Set data directory in Configuration page first" if discover_disabled else None
+            help=missing_dir_hint if discover_disabled else None
         ):
-            discover_and_display_files()
+            if is_reflection_mode:
+                discover_reflection_files_and_display()
+            else:
+                discover_and_display_files()
 
-        if not data_dir:
-            st.caption("Please set data directory in Configuration page first")
+        if discover_disabled:
+            st.caption(missing_dir_hint)
 
     # -------------------------------------------------
     # Run Calibration Section - centered wider button
@@ -445,7 +764,7 @@ def main():
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        has_files = 'discovered_files' in st.session_state and st.session_state['discovered_files']
+        has_files = bool(st.session_state.get(discovered_key))
         run_disabled = not has_files
 
         if st.button(
@@ -455,8 +774,9 @@ def main():
             disabled=run_disabled,
             help="Discover calibration files first" if run_disabled else None
         ):
-            # Check if already calibrated - show confirmation dialog
-            if is_calibrated():
+            # If ANY calibration is loaded (same or different mode), warn the
+            # user that running a new calibration will wipe the session.
+            if has_any_calibration():
                 st.session_state['_show_recal_dialog'] = True
                 st.rerun()
             else:
@@ -468,15 +788,20 @@ def main():
     # Add vertical spacing after Run Calibration section
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Re-calibration confirmation dialog
-    @st.dialog("Start New Calibration?")
+    # Re-calibration confirmation dialog — full session reset on proceed
+    @st.dialog("Re-calibrate? Session will be reset.")
     def confirm_recalibration():
-        st.write("This will clear the current calibration and all processed samples.")
-        st.write("Are you sure you want to proceed?")
+        st.warning(
+            "Running a new calibration will **reset the session**:\n\n"
+            "- All current calibration data (transmission **and** reflection) will be cleared.\n"
+            "- All processed samples and decomposition results will be removed.\n\n"
+            "Configuration values (paths, AOI, wavelength range) are kept."
+        )
+        st.write("Do you want to proceed?")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("New Calibration", use_container_width=True):
-                clear_calibration()
+            if st.button("Proceed", use_container_width=True, type="primary"):
+                full_session_reset()
                 st.session_state['_show_recal_dialog'] = False
                 st.session_state['_run_calibration'] = True
                 st.rerun()
@@ -497,12 +822,12 @@ def main():
     # -------------------------------------------------
     # Quality Summary Section (now includes eigenvalue plot)
     # -------------------------------------------------
-    if is_calibrated():
-        result = get_calibration_result()
-        diagnostics = get_calibration_diagnostics()
-        if result and diagnostics:
-            with st.expander("Quality Summary", expanded=True):
-                display_quality_summary(diagnostics, result)
+    if mode_is_calibrated and active_result and active_diagnostics:
+        with st.expander("Quality Summary", expanded=True):
+            display_quality_summary(
+                active_diagnostics, active_result,
+                is_reflection=is_reflection_mode,
+            )
 
     # -------------------------------------------------
     # Save/Load Calibration Section (moved to bottom)
@@ -515,10 +840,10 @@ def main():
     with col1:
         st.markdown("**Save Current Calibration**")
         tutorial_mode = st.session_state.get('tutorial_mode', False)
-        save_disabled = not is_calibrated() or tutorial_mode
+        save_disabled = not mode_is_calibrated or tutorial_mode
         if tutorial_mode:
             save_help = "Saving is disabled in Tutorial mode"
-        elif not is_calibrated():
+        elif not mode_is_calibrated:
             save_help = "Run calibration first to enable saving"
         else:
             save_help = None

@@ -252,11 +252,13 @@ def discover_calibration_files(cfg: 'ECMConfig') -> CalibrationFiles:
 
         if not result.found:
             if len(result.matches) == 0:
+                hint = _format_missing_file_hint(data_dir, keyword)
                 raise FileNotFoundError(
                     f"Required calibration file not found.\n"
                     f"  Looking for: filename containing '{keyword}'\n"
                     f"  In directory: {data_dir}\n"
                     f"  Sample type: {name}"
+                    f"{hint}"
                 )
             else:
                 raise ValueError(
@@ -351,11 +353,61 @@ def discover_calibration_files(cfg: 'ECMConfig') -> CalibrationFiles:
 # HELPER FUNCTIONS
 # =============================================================================
 
+def _suggest_subdirs_with_keyword(
+    directory: Path, keyword: str, exclude_pattern: Optional[str] = None
+) -> List[Path]:
+    """Return immediate subdirectories of ``directory`` that contain at least
+    one file whose name matches ``keyword`` (case-insensitive). Used to make
+    "file not found" errors actionable when the user pointed at a parent
+    directory.
+    """
+    kw = keyword.lower()
+    excl = exclude_pattern.lower() if exclude_pattern else None
+    hits: List[Path] = []
+    if not directory.exists() or not directory.is_dir():
+        return hits
+    for sub in directory.iterdir():
+        if not sub.is_dir() or sub.name.startswith('.'):
+            continue
+        for f in sub.iterdir():
+            if f.is_dir():
+                continue
+            name_lower = f.name.lower()
+            if kw not in name_lower:
+                continue
+            if excl is not None and excl in name_lower:
+                continue
+            hits.append(sub)
+            break
+    return hits
+
+
+def _format_missing_file_hint(
+    directory: Path, keyword: str, exclude_pattern: Optional[str] = None
+) -> str:
+    """Build a one-line hint suggesting subdirectories where the file might be."""
+    suggestions = _suggest_subdirs_with_keyword(directory, keyword, exclude_pattern)
+    if not suggestions:
+        return (
+            "\n  Hint: only the directory you specified is searched (not its "
+            "subdirectories). If your data is in a subfolder, point the data "
+            "directory at that subfolder directly."
+        )
+    paths_str = '\n'.join(f'    - {p}' for p in suggestions)
+    return (
+        "\n  Hint: the search is non-recursive. The following subdirectories "
+        "of the path you specified contain a matching file:\n"
+        f"{paths_str}\n"
+        "  Update the data directory in CONFIGURATION to one of those paths."
+    )
+
+
 def _search_for_file(
     directory: Path,
     keyword: str,
     extension: Optional[str] = None,
-    secondary_pattern: Optional[str] = None
+    secondary_pattern: Optional[str] = None,
+    exclude_pattern: Optional[str] = None
 ) -> FileSearchResult:
     """
     Search for files containing a keyword in a directory.
@@ -376,6 +428,11 @@ def _search_for_file(
         Additional pattern that must also be present.
         Useful for narrowing down matches.
 
+    exclude_pattern : str, optional
+        Pattern that must NOT be present in the filename.
+        Useful for excluding variants (e.g., exclude '_POL_' when
+        searching for bare reflector files).
+
     Returns
     -------
     FileSearchResult
@@ -386,6 +443,7 @@ def _search_for_file(
     # Normalize keyword for case-insensitive comparison
     keyword_lower = keyword.lower()
     secondary_lower = secondary_pattern.lower() if secondary_pattern else None
+    exclude_lower = exclude_pattern.lower() if exclude_pattern else None
 
     # Search for matching files
     for entry in directory.iterdir():
@@ -406,6 +464,11 @@ def _search_for_file(
         # Check secondary pattern if specified
         if secondary_lower is not None:
             if secondary_lower not in name_lower:
+                continue
+
+        # Check exclude pattern
+        if exclude_lower is not None:
+            if exclude_lower in name_lower:
                 continue
 
         matches.append(entry)
@@ -519,3 +582,198 @@ def list_calibration_files(
             print(f"\nOther files ({len(results['other'])}): not matched to ECM patterns")
 
     return results
+
+
+# =============================================================================
+# REFLECTION MODE FILE DISCOVERY
+# =============================================================================
+
+@dataclass
+class ReflectionCalibrationFiles:
+    """
+    Discovered reflection calibration file paths.
+
+    Attributes
+    ----------
+    dark : Path
+        Dark/background measurement file.
+    wafer25nm : Path
+        Bare wafer 25 nm measurement (no polarizer).
+    wafer25nm_pol_before : Path
+        Wafer 25 nm with polarizer before sample.
+    wafer25nm_pol_after : Path
+        Wafer 25 nm with polarizer after sample.
+    wafer10nm : Path
+        Bare wafer 10 nm measurement.
+    wafer25nm_char_psi_delta : Path, optional
+        Wafer 25 nm psi/delta characterization file.
+    wafer25nm_char_RpRs : Path, optional
+        Wafer 25 nm Rp/Rs characterization file.
+    wafer10nm_char_psi_delta : Path, optional
+        Wafer 10 nm psi/delta characterization file.
+    wafer10nm_char_RpRs : Path, optional
+        Wafer 10 nm Rp/Rs characterization file.
+    """
+    dark: Path
+    wafer25nm: Path
+    wafer25nm_pol_before: Path
+    wafer25nm_pol_after: Path
+    wafer10nm: Path
+    wafer25nm_char_psi_delta: Optional[Path] = None
+    wafer25nm_char_RpRs: Optional[Path] = None
+    wafer10nm_char_psi_delta: Optional[Path] = None
+    wafer10nm_char_RpRs: Optional[Path] = None
+
+
+def discover_reflection_calibration_files(cfg: 'ECMConfig') -> ReflectionCalibrationFiles:
+    """
+    Auto-discover reflection calibration files by filename keywords.
+
+    Searches the reflection calibration data directory for measurement files
+    and the assets directory for wafer characterization files.
+
+    Parameters
+    ----------
+    cfg : ECMConfig
+        ECM configuration with paths and reflection_cal settings.
+
+    Returns
+    -------
+    ReflectionCalibrationFiles
+        Dataclass with paths to all discovered files.
+
+    Raises
+    ------
+    FileNotFoundError
+        If a required calibration or characterization file is not found.
+    ValueError
+        If multiple files match the same keyword pattern.
+    """
+    # -------------------------------------------------------------------------
+    # Get data directory
+    # -------------------------------------------------------------------------
+    data_dir = cfg.paths.calibration_reflection_dir
+    if data_dir is None:
+        raise ValueError(
+            "cfg.paths.calibration_reflection_dir must be set. "
+            "Set it to the directory containing reflection calibration measurements."
+        )
+
+    data_dir = Path(data_dir)
+    if not data_dir.exists():
+        raise FileNotFoundError(
+            f"Reflection calibration directory does not exist: {data_dir}"
+        )
+
+    # -------------------------------------------------------------------------
+    # Define keyword patterns for reflection mode
+    # -------------------------------------------------------------------------
+    # Required measurement files
+    # Note: WAFER25NM_ECM_ and WAFER10NM_ECM_ use exclude_pattern='_POL_'
+    # to avoid matching POL_BEFORE and POL_AFTER variants
+    required_keywords = {
+        'dark': ('_DARK_ECM_', None),
+        'wafer25nm': ('_WAFER25NM_ECM_', '_POL_'),           # exclude POL variants
+        'wafer25nm_pol_before': ('_WAFER25NM_POL_BEFORE_ECM_', None),
+        'wafer25nm_pol_after': ('_WAFER25NM_POL_AFTER_ECM_', None),
+        'wafer10nm': ('_WAFER10NM_ECM_', '_POL_'),           # exclude POL variants
+    }
+
+    # -------------------------------------------------------------------------
+    # Search for required measurement files
+    # -------------------------------------------------------------------------
+    found_files: Dict[str, Path] = {}
+
+    print("\nSearching for reflection calibration files...")
+    print(f"  Data directory: {data_dir}")
+    print()
+
+    for name, (keyword, exclude) in required_keywords.items():
+        result = _search_for_file(data_dir, keyword, exclude_pattern=exclude)
+
+        if not result.found:
+            if len(result.matches) == 0:
+                hint = _format_missing_file_hint(data_dir, keyword, exclude)
+                raise FileNotFoundError(
+                    f"Required reflection calibration file not found.\n"
+                    f"  Looking for: filename containing '{keyword}'"
+                    + (f" (excluding '{exclude}')" if exclude else "") +
+                    f"\n  In directory: {data_dir}\n"
+                    f"  Sample type: {name}"
+                    f"{hint}"
+                )
+            else:
+                raise ValueError(
+                    f"Multiple files match '{keyword}':\n" +
+                    '\n'.join(f"    {p.name}" for p in result.matches) +
+                    f"\n  Please ensure only one file matches each pattern."
+                )
+
+        found_files[name] = result.path
+        print(f"  Found {name:25s}: {result.path.name}")
+
+    # -------------------------------------------------------------------------
+    # Search for wafer characterization files in assets directory
+    # -------------------------------------------------------------------------
+    char_files: Dict[str, Optional[Path]] = {
+        'wafer25nm_char_psi_delta': None,
+        'wafer25nm_char_RpRs': None,
+        'wafer10nm_char_psi_delta': None,
+        'wafer10nm_char_RpRs': None,
+    }
+
+    assets_dir = cfg.paths.assets_dir
+    if assets_dir is None or not Path(assets_dir).exists():
+        raise FileNotFoundError(
+            f"Assets directory not found: {assets_dir}. "
+            f"Wafer characterization files are required for reflection calibration."
+        )
+
+    assets_dir = Path(assets_dir)
+    r1_label = cfg.reflection_cal.wafer25nm_label
+    r2_label = cfg.reflection_cal.wafer10nm_label
+
+    print()
+    print(f"  Searching for wafer characterization in: {assets_dir}")
+
+    # Wafer characterization files
+    char_patterns = {
+        'wafer25nm_char_psi_delta': (r1_label, 'psi_delta'),
+        'wafer25nm_char_RpRs': (r1_label, 'Rp_Rs'),
+        'wafer10nm_char_psi_delta': (r2_label, 'psi_delta'),
+        'wafer10nm_char_RpRs': (r2_label, 'Rp_Rs'),
+    }
+
+    for name, (label, secondary) in char_patterns.items():
+        result = _search_for_file(
+            assets_dir, label, extension='.txt', secondary_pattern=secondary
+        )
+        if result.found:
+            char_files[name] = result.path
+            print(f"  Found {name:35s}: {result.path.name}")
+        else:
+            raise FileNotFoundError(
+                f"Required wafer characterization file not found.\n"
+                f"  Looking for: '{label}' + '{secondary}' in {assets_dir}\n"
+                f"  File type: {name}"
+            )
+
+    # -------------------------------------------------------------------------
+    # Build result
+    # -------------------------------------------------------------------------
+    result = ReflectionCalibrationFiles(
+        dark=found_files['dark'],
+        wafer25nm=found_files['wafer25nm'],
+        wafer25nm_pol_before=found_files['wafer25nm_pol_before'],
+        wafer25nm_pol_after=found_files['wafer25nm_pol_after'],
+        wafer10nm=found_files['wafer10nm'],
+        wafer25nm_char_psi_delta=char_files['wafer25nm_char_psi_delta'],
+        wafer25nm_char_RpRs=char_files['wafer25nm_char_RpRs'],
+        wafer10nm_char_psi_delta=char_files['wafer10nm_char_psi_delta'],
+        wafer10nm_char_RpRs=char_files['wafer10nm_char_RpRs'],
+    )
+
+    print()
+    print("  All reflection calibration files found successfully")
+
+    return result

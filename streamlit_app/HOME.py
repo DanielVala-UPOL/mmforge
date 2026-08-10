@@ -74,15 +74,14 @@ def main():
 
     This application provides an intuitive workflow for:
 
-    - **Calibrating** the Mueller matrix spectroscopic polarimeter(*) using the Eigenvalue Calibration Method (ECM)
-    - **Processing** sample measurements to extract Mueller matrices
-    - **Analyzing** results to obtain physical polarimetric parameters of your samples
+    - **Calibrating** the Mueller matrix spectroscopic polarimeter(*) using the Eigenvalue Calibration Method (ECM), in **transmission** or **reflection** mode
+    - **Processing** sample measurements to extract Mueller matrices and related ellipsometric and polarimetric parameters
+    - **Analyzing** results through Mueller-matrix decompositions: **Lu-Chipman polar, Cloude spectral, Differential (Minkowski space); and Purity Space analysis**
 
 
     Navigate through the steps using the :blue-background[sidebar]. Get started with :blue-background[CONFIGURATION] — set your paths and parameters, and you are ready to go!
-    If you are a newcomer, read more about the workflow below.
+    If you are a newcomer to this app, read more about the workflow below.
 
-    (*) *Currently supports only a stepwise dual-rotating-compensator polarimeter with specific PSG and PSA retardances.*
                 """)
 
     # -------------------------------------------------
@@ -191,11 +190,20 @@ def main():
 
     with tab1:
         st.markdown("**Begin by configuring the application to suit your experimental setup.**")
-        
+
+        st.markdown("**Select Calibration Mode**")
+        st.markdown("""
+- **Transmission** — straight-through configuration. Calibration uses air (ST), two linear polarizers, and one or two Fresnel-prism retarders.
+- **Reflection** — oblique-incidence configuration. Calibration uses two reference wafers (25 nm and 10 nm SiO₂ / Si) plus two polarizer-bearing measurements. Default angle of incidence is 65°.
+- **Tutorial Data** — bundled transmission example so you can learn the workflow without your own data.
+        """)
+
         st.markdown("**Define Data Paths**")
         st.markdown("""
-- Specify the data directory containing calibration and sample measurements.
-- The :red-background[directory **must** contain] all calibration samples and measurements.
+- **Transmission** and **Reflection** both ask for a single data directory holding all calibration files and sample measurements (the same set of file patterns described in the CALIBRATE tab below).
+- An output directory is shared between modes for saving calibrations and exports.
+- The :red-background[data directory **must** contain] all required calibration files (see the CALIBRATE tab for keyword patterns).
+- The application auto-discovers files based on these patterns; no manual file selection is needed.
         """)
 
         st.markdown("**Specify Wavelength Settings**")
@@ -204,25 +212,21 @@ def main():
 - Both calibration and sample processing will use this range.
         """)
 
-        st.markdown("**Select Calibration Mode**")
-        st.markdown("""
-- Choose between Transmission, Reflection, or Combined mode.
-- Currently, only Transmission mode is supported; other modes will be available in future releases.
-        """)
         st.info("""
 **Tutorial Data:**
-- You may select **Turorial Data** in **Calibration Mode** to learn the workflow without needing your own measurements.
-- This option loads example calibration data and sample measurements to demonstrate the application's features.
+- You may select **Tutorial Data** in **Calibration Mode** to learn the workflow without needing your own measurements.
+- This option loads example transmission calibration data and a sample measurement to demonstrate the application's features.
 - The Data Directory is automatically prefilled. Saving is not enabled.
 - You may still select the wavelength range.
-                - Caution! The bundled tutorial data is designed for demonstration purposes and may not reflect real experimental conditions. Use it to familiarize yourself with the workflow, but always validate with your own measurements for actual analysis.
+- Caution! The bundled tutorial data is designed for demonstration purposes and may not reflect real experimental conditions. Use it to familiarize yourself with the workflow, but always validate with your own measurements for actual analysis.
+- Caution! The tutorial data is for transmission mode only; the reflection mode features will not be demonstrated with this dataset.
                 """)
 
     with tab2:
         st.markdown("**Continue with calibrating the polarimeter using the ECM.**")
-        st.markdown("Ensure all required calibration samples are present by clicking the :blue-background[Discover Files] button. The application automatically searches for required samples by filename patterns.")
-        
-        st.markdown("**The following calibration samples and label patterns are required:**")
+        st.markdown("Ensure all required calibration files are present by clicking the :blue-background[Discover Files] button. The application searches for required files by filename patterns. The pattern set depends on the calibration mode you selected on the CONFIGURATION page.")
+
+        st.markdown("**Transmission mode — required label patterns:**")
         st.markdown("""
 | Sample | Label Pattern* | Status |
 |--------|---------------|--------|
@@ -233,36 +237,58 @@ def main():
 | Fresnel prism FP1 at 90° | :orange-background[\\_RET90_FP1_ECM\\_] | **Required** |
 | Fresnel prism FP2 at 45° | :orange-background[\\_RET45_FP2_ECM\\_] | Optional** |
         """)
-        
+
+        st.markdown("**Reflection mode — required label patterns:**")
+        st.markdown("""
+| Sample | Label Pattern* | Status |
+|--------|---------------|--------|
+| Background (closed shutter) | :orange-background[\\_DARK_ECM\\_] | **Required** |
+| Wafer 25 nm (bare) | :orange-background[\\_WAFER25NM_ECM\\_] | **Required** |
+| Wafer 25 nm + Pol BEFORE sample | :orange-background[\\_WAFER25NM_POL_BEFORE_ECM\\_] | **Required** |
+| Wafer 25 nm + Pol AFTER sample | :orange-background[\\_WAFER25NM_POL_AFTER_ECM\\_] | **Required** |
+| Wafer 10 nm (bare) | :orange-background[\\_WAFER10NM_ECM\\_] | **Required** |
+        """)
+
         st.caption("*Before and after the underscore delimiters can be any string (e.g., sample ID, date, etc.); labels are case-sensitive.")
-        st.caption("**Not required, but recommended for best results.")
-        
+        st.caption("**Not required for transmission, but recommended for best results.")
+
         st.markdown("**Hit :red-background[Run Calibration]**")
         st.markdown("""
 - The application will process the calibration data and display eigenvalue metrics to assess the calibration quality.
-- You may save the calibration results for future use *(not required)*.
+- In reflection mode, the calibration also runs a per-wavelength wafer optimization and (optionally) a TMM physics-informed thickness fit; results are shown in the *Reflection Quality Details* expander.
+- You may save the calibration results for future use *(not required)*. Save files are mode-aware — the same .npz format covers both transmission and reflection calibrations.
         """)
-        
+
         st.info("""
 **Tips:**
-- Check calibration status in the sidebar
+- Check the dual calibration status (Transmission / Reflection) in the sidebar
 - Rerun anytime after changing settings
-- Load saved calibration results at the bottom
+- Load saved calibration results at the bottom; the loader auto-detects the mode from the file
         """)
 
     with tab3:
         st.markdown("**Now you are ready to process the samples and obtain their Mueller matrices.**")
-        st.markdown("Ensure all sample data files are within the specified directory (the same directory as the calibration samples).")
-        
+        st.markdown("Ensure all sample data files are within the specified directory (the same directory as the calibration files).")
+
         st.markdown("**Hit :blue-background[Discover Samples]**")
         st.markdown("""
-- The application will search for sample measurement files.
+- The application will search for sample measurement files (any `.bin` file that is **not** a calibration file).
 - You can select which samples to process by checking the boxes next to their names.
 - Once you have selected the samples, click :red-background[Process Selected] to start processing.
 - The application will process the selected samples and display the results.
 - You can save the processed results for future use *(not required)*.
         """)
-        
+
+        st.markdown("**Reflection mode**")
+        st.markdown("""
+- After Mueller-matrix extraction, the application automatically computes ellipsometric parameters using the configured AOI:
+  - Ellipsometric angles Ψ and Δ (in degrees)
+  - NCS parametrization: N = cos(2Ψ), C = sin(2Ψ)·cos(Δ), S = sin(2Ψ)·sin(Δ)
+  - ⟨ε⟩ (pseudo-dielectric function, complex)
+  - ⟨n⟩, ⟨k⟩ (refractive index and extinction coefficient derived from ⟨ε⟩)
+- Both are displayed in the *Ellipsometric Parameters* expander beneath the Mueller matrix block, and are included in CSV / NPZ exports.
+        """)
+
         st.info("""
 **Tips:**
 - Process samples multiple times
@@ -272,30 +298,50 @@ def main():
         """)
 
     with tab4:
-        st.markdown("**The raw Mueller matrices of the samples can be converted to fundamental polarization quantities.**")
-        st.markdown("Here, you can select which samples you want to post-process.")
-        
-        st.markdown("**Hit :red-background[Run Decomposition]**")
+        st.markdown("**The raw Mueller matrices of the samples can be converted to fundamental polarization quantities through four complementary decompositions.**")
+        st.markdown("All four methods accept Mueller matrices from either transmission or reflection mode. Each method has its own tab on the PARAMETERS page.")
+
+        st.markdown("**1. Lu–Chipman polar decomposition** *(M = M<sub>Δ</sub> · M<sub>R</sub> · M<sub>D</sub>)*", unsafe_allow_html=True)
         st.markdown("""
-- The application will perform the Lu–Chipman decomposition on the selected samples and display the extracted parameters.
-- The parameters include diattenuation, retardance, depolarization, and eigenmode characteristics.
+- Extracts **diattenuation (D)**, **retardance (R)**, and **depolarization (Δ, DI)** as separate Mueller matrices.
+- Reports eigenmode characteristics: fast-axis orientation **ν** and ellipticity **χ**.
+- Best suited for samples that can be approximated as a sequence of ideal optical elements (e.g., a retarder followed by a diattenuator), but may not capture complex interactions or strong scattering.
         """)
-        
+
+        st.markdown("**2. Differential decomposition** *(log-space, Minkowski metric)*")
+        st.markdown("""
+- Decomposes **L = ln(M)** into a polarization part **L<sub>m</sub>** (mean nondepolarizing properties) and a depolarization part **L<sub>u</sub>**.
+- Their matrix exponentials give the component matrices **M<sub>m</sub>** and **M<sub>u</sub>**.
+- Best suited for samples with significant depolarization and scattering, where the log-space decomposition can better capture changes in polarization properties.
+        """, unsafe_allow_html=True)
+
+        st.markdown("**3. Cloude spectral decomposition** *(coherency matrix H)*")
+        st.markdown("""
+- Builds the 4×4 Hermitian coherency matrix **H** and diagonalizes it into four eigenvalues λ₀ ≥ λ₁ ≥ λ₂ ≥ λ₃ and four component Mueller matrices.
+- The Mueller matrix related to thedominant component (λ₀) captures the deterministic and non-depolarizing properties; the rest represent noise.
+- Tab shows the eigenvalue spectrum, each component matrix, and selected |H<sub>ij</sub>| traces.
+- Best suited for samples with low depolarization and high SNR, where the dominant eigenvalue is significantly larger than the others.
+        """, unsafe_allow_html=True)
+
+        st.markdown("**4. Purity space analysis**")
+        st.markdown("""
+- Computes the three purity indices **P<sub>P</sub>** (polarimetric purity), **P<sub>S</sub>** (spherical purity), and **P<sub>Δ</sub>** (overall purity).
+- The **(P<sub>S</sub>, P<sub>P</sub>) purity space diagram** marks each wavelength on a 2-D plot bounded by physical realizability curves (Gil & Ossikovski, 2022).
+- Quick visual diagnostic: is the sample mostly a retarder, a diattenuator, a depolarizer; what is the source of depolarization; how does purity evolve with wavelength?
+        """, unsafe_allow_html=True)
+
         st.warning("""
-**⚠️  Important Limitations of Lu–Chipman Decomposition:**
-- Assumes transmission geometry (may not suit reflection-mode measurements)
-- Assumes samples can be represented as ideal optical element sequences
-- May not capture complex interactions in scattering or anisotropic samples
-- Breakdowns can occur for extreme polarimetric properties
-- Always interpret results within your experimental context
+**⚠️  Notes on decomposition results:**
+- Decompositions are mathematical tools that can provide insights into the sample's polarization properties, but they are not unique physical models. 
+- Different decompositions may yield different interpretations of the same Mueller matrix. Some or all decomposition may be not suitable for a given sample at all!
+- Always interpret results within your experimental context.
         """)
-        
+
         st.info("""
 **Tips:**
-- Use the Summary Table for quick parameter comparisons
-- Rerun decomposition anytime
-- Plots offer interactive features
-- Export results for external analysis
+- Rerun any decomposition anytime; each tab keeps its own result cache
+- Plots offer interactive features (hover, zoom, pan, legend toggling)
+- Export results from each tab as .npz or .csv for external analysis
         """)
 
 
