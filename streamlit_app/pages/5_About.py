@@ -50,17 +50,17 @@ render_sidebar()
 # ============================================================================
 
 def main():
-    st.title("About MMForge 2.0")
+    st.title("About MMForge 2.1")
 
     st.space(size="small")
 
     st.markdown("""
     This cross-platform, browser-based application was built with Streamlit and is powered by the ECM calibration Python package developed by the author.
-    MMForge 2.0 supports Mueller matrix spectroscopic ellipsometry in both **transmission** and **reflection** modes,
+    MMForge supports Mueller matrix spectroscopic ellipsometry in both **transmission** and **reflection** modes,
     with ellipsometric parameter extraction (Ψ, Δ, pseudo-dielectric function, pseudo n/k) and four Mueller-matrix decompositions
     (Lu-Chipman, differential, Cloude spectral, purity space).
 
-    This is MMForge 2.0, released in May 2026, on top of ECM-Calibration v8.0.0. Due to specific requirements of the ECM algorithm,
+    This is MMForge 2.1.0, released in August 2026, on top of ECM-Calibration v8.0.0. Due to specific requirements of the ECM algorithm,
     correct operation of the application requires a particular instrument design. This version is intended for exclusive use
     with the custom-built Mueller matrix spectroscopic ellipsometer at the Department of Optics, Palacký University Olomouc, and may
     not be compatible with other instruments without modification. Future versions will aim to support a wider range of instrument configurations.
@@ -92,6 +92,36 @@ def main():
     with st.expander("Changelog", expanded=False):
         st.markdown("""
                 
+        ## v2.1.0 (August 2026)
+
+        **New:**
+        - **One-click launchers.** `MMForge.bat` on Windows and `MMForge.command`
+          on macOS start the application without a terminal or an IDE. The
+          Windows installer adds a Desktop shortcut with the MMForge icon; the
+          macOS installer builds an MMForge app in your Applications folder.
+        - **One-time installers** (`Install-Windows.bat`, `Install-macOS.command`)
+          that create the Python environment and install everything needed.
+          Safe to re-run: that is the standard repair step.
+        - **README** with separate, self-contained step-by-step instructions for
+          Windows and macOS.
+
+        **Fixed:**
+        - Results were saved into the current working directory, which scattered
+          `.npz` and `.csv` files among the program files. MMForge now suggests
+          `MMForge_output` in your home folder, and a blank Output Directory box
+          falls back to that instead of writing next to the source code.
+        - The Streamlit requirement was too loose (`>=1.30`); the Calibration
+          page needs 1.37 or newer. All dependencies now have tested upper
+          bounds so a fresh installation cannot pull in a breaking release.
+
+        **Changes:**
+        - Removed the bundled `plans/` folder and the `data/test/` measurement
+          set (31 MB). Tutorial data and runtime assets are unaffected.
+        - Usage telemetry is switched off.
+        - Added a LICENSE file.
+
+        ---
+
         ## v2.0.1 (August 2026)
 
         **Changes:**

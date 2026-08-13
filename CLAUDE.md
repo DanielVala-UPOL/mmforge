@@ -4,7 +4,7 @@ This document is the starting point for anyone — human or AI — picking up
 work on MMForge. It explains the architecture, the conventions, and the
 non-obvious pitfalls you will run into.
 
-> **Version target:** MMForge **v2.0**, built on **ECM-Calibration v8.0.0**.
+> **Version target:** MMForge **v2.1.0**, built on **ECM-Calibration v8.0.0**.
 > If the version numbers in [`ecm/__init__.py`](ecm/__init__.py) or
 > [`streamlit_app/components/sidebar.py`](streamlit_app/components/sidebar.py)
 > have drifted from those, the doc is stale — update it before doing
@@ -34,7 +34,7 @@ modes:
 ## Repository layout
 
 ```
-ECM-GUI/
+MMForge/
 ├── ecm/                          # algorithms (the "ECM library")
 │   ├── config/ecm_config.py      # ECMConfig + reflection sub-configs
 │   ├── core/
@@ -79,8 +79,23 @@ ECM-GUI/
 │   │   └── file_browser.py      ← directory text input
 │   └── utils/
 │       ├── session_state.py     ← SESSION_KEYS + persist loop (see below)
+│       │                           + DEFAULT_OUTPUT_DIR / get_output_dir()
 │       ├── styling.py
 │       └── export.py
+├── tools/                        # launcher + installer internals
+│   ├── launch_mmforge.py         ← shared: port, checks, starts Streamlit
+│   ├── setup_env.py              ← shared: venv + pip + self-check
+│   ├── create_windows_shortcut.ps1
+│   ├── create_macos_app.sh       ← builds ~/Applications/MMForge.app
+│   ├── mmforge.ico               ← Windows shortcut icon
+│   └── mmforge.png               ← source for the macOS .icns
+├── MMForge.bat                   # Windows: double-click to run
+├── MMForge.command               # macOS:   double-click to run
+├── Install-Windows.bat           # Windows: one-time setup
+├── Install-macOS.command         # macOS:   one-time setup
+├── README.md                     # the user-facing install story
+├── LICENSE
+├── .gitattributes                # CRLF for .bat, LF for .command
 └── data/
     ├── assets/                   ← BUNDLED: Woollam Ψ/Δ + Rp/Rs files,
     │                                BlackComet wavelengths, FP1/FP2 char,
@@ -265,6 +280,62 @@ these three rules being violated.
 
 ---
 
+## How the launchers work (v2.1.0)
+
+Users are not expected to touch a terminal. Four files at the repository
+root cover both platforms, and all four are thin — the real logic lives
+in `tools/` and is shared.
+
+```
+Install-Windows.bat  ─┐                      ┌─ tools/create_windows_shortcut.ps1
+                      ├─→ tools/setup_env.py ─┤
+Install-macOS.command ┘                      └─ tools/create_macos_app.sh
+
+MMForge.bat          ─┐
+                      ├─→ tools/launch_mmforge.py ─→ streamlit run HOME.py
+MMForge.command      ─┘
+```
+
+Design rules, each of which exists for a reason:
+
+1. **Never activate an environment.** The launchers call
+   `.venv/Scripts/python.exe` or `.venv/bin/python` by absolute path.
+   That is equivalent to activation and cannot pick up the wrong
+   interpreter. The old lab `.bat` spent half its length hunting for
+   `conda.bat`; none of that is needed.
+2. **Self-location, not configuration.** `%~dp0` and
+   `${BASH_SOURCE[0]}` give the project root. There is no path for the
+   user to edit. A recorded fallback
+   (`%LOCALAPPDATA%\MMForge\install_path.txt`,
+   `~/Library/Application Support/MMForge/install_path`) covers a
+   launcher copied out of the project.
+3. **Shortcuts, not copies.** The Desktop entry on Windows is a `.lnk`
+   and the macOS entry is an `.app` in `~/Applications`. Both point back
+   at the in-project launcher. Windows cannot put an icon on a `.bat`,
+   and a copied script loses its self-location.
+4. **The macOS `.app` is generated, never committed.** An `.app` that
+   arrives inside a downloaded ZIP carries a quarantine flag and
+   Gatekeeper refuses it as "damaged". One built locally does not.
+5. **Streamlit runs headless and we open the browser.** Non-headless
+   mode stops on a first-run e-mail prompt on any machine where
+   Streamlit has never run, and waits forever. `launch_mmforge.py`
+   passes `--server.headless true`, polls `/_stcore/health`, then calls
+   `webbrowser.open`.
+6. **Bind `127.0.0.1`.** No Windows Firewall prompt, and the app is not
+   exposed on the lab network. Change `SERVER_ADDRESS` in
+   `launch_mmforge.py` if LAN access is ever wanted.
+7. **`.gitattributes` is load-bearing.** `.bat`/`.cmd`/`.ps1` are pinned
+   to CRLF and `.command`/`.sh` to LF. Without it a checked-out
+   `.command` dies with `bad interpreter: /bin/bash^M`. This is why both
+   platforms live on one branch instead of two — the only genuinely
+   platform-specific problem is line endings, and one file solves it.
+
+If you add a file that either platform executes, add its extension to
+`.gitattributes` and set the exec bit with
+`git update-index --chmod=+x`.
+
+---
+
 ## How to extend
 
 ### Add a new decomposition method
@@ -328,8 +399,11 @@ If a third mode is needed, follow the reflection-mode pattern:
   for tutorial mode and as a backend regression fixture. Median
   λ₁₆/λ₁₅ ≈ 2.8e-04 on this data; if a change pushes it materially
   higher, something regressed.
-- `data/test/transmission/` and `data/test/reflection/` — user's real
-  measurement data. Reflection set takes ~1–2 min to calibrate.
+- `data/test/` **was removed in v2.1.0** (31 MB of real measurements and
+  reference exports). Nothing referenced it and there is no test suite.
+  It is still in git history if a regression fixture is ever wanted:
+  `git show v2.0.1:data/test/...`. Reflection calibration on that set
+  took ~1–2 min.
 
 Quick smoke test (no Streamlit needed):
 
@@ -372,6 +446,19 @@ print('OK')
 6. **Reflection sample discovery used to leak calibration files** —
    make sure any new reflection-mode calibration keyword is added to
    `CALIBRATION_KEYWORDS` in `ecm/io/sample_discovery.py`.
+7. **`st.session_state.get(key, default)` never returns your default for
+   a key listed in `SESSION_KEYS`.** `initialize_session_state()` creates
+   every key, so `.get()` finds it and returns its value — including `''`.
+   This silently broke every output path until v2.1.0: `Path('')` is `.`,
+   so saves landed in the working directory. Use an explicit helper like
+   `get_output_dir()` that treats blank as "unset".
+8. **Streamlit's first-run e-mail prompt blocks startup.** On a machine
+   where Streamlit has never run, non-headless mode stops and waits for
+   input. Always pass `--server.headless true` from a launcher.
+9. **Check the Streamlit floor before using a new `st.*` API.**
+   `st.dialog` needs 1.37; `requirements.txt` allowed 1.30 for months.
+   The pinned range there is the contract — update it in the same commit
+   as the API use.
 
 ---
 
@@ -388,4 +475,4 @@ print('OK')
 
 ---
 
-*Last updated: 2026-05-18 (MMForge v2.0).*
+*Last updated: 2026-08-13 (MMForge v2.1.0).*

@@ -4,6 +4,88 @@ All notable changes to MMForge will be documented in this file.
 
 ---
 
+## [v2.1.0] - 2026-08-13
+
+Still built on **ECM-Calibration v8.0.0**. No changes to the algorithms or
+to any numerical result. This release is about getting MMForge running on
+a normal computer without a terminal, an IDE, or any knowledge of Python.
+
+### Added
+- **Platform launchers.** `MMForge.bat` (Windows) and `MMForge.command`
+  (macOS) start the application by double-click. Both locate the project
+  from their own file path, so the working directory is irrelevant, and
+  both fall back to a location recorded at install time if the file is
+  copied elsewhere. Neither activates an environment: they call the
+  virtual environment's own Python directly, which is equivalent and
+  cannot pick up the wrong interpreter.
+- **One-time installers.** `Install-Windows.bat` and
+  `Install-macOS.command` create `.venv`, install `requirements.txt`,
+  verify every import, and offer a desktop entry. Re-running them is the
+  documented fix for a broken installation; `--recreate` rebuilds the
+  environment from scratch.
+- **Desktop integration.** On Windows, a Desktop shortcut carrying
+  `tools/mmforge.ico` (a shortcut rather than a copy: Windows cannot put
+  an icon on a `.bat`, and the `.bat` must stay next to the project). On
+  macOS, `~/Applications/MMForge.app`, generated locally so Gatekeeper
+  does not refuse it, with an icon built by `sips` and `iconutil`.
+- **Shared launcher core** in `tools/`: `launch_mmforge.py` names any
+  missing dependency instead of raising a traceback, picks a free port
+  between 8501 and 8520, binds `127.0.0.1` (which also avoids the Windows
+  Firewall prompt), and opens the browser once the server answers.
+  `setup_env.py` rejects a too-old Python and the Microsoft Store
+  `python.exe` stub, and warns when the project sits in a cloud-synced
+  folder.
+- **README.md** with self-contained, step-by-step Windows and macOS
+  sections, a troubleshooting list, and developer notes.
+- **LICENSE.** The repository is public but previously had no licence
+  file.
+- **`.gitattributes`** pinning `.bat`/`.cmd`/`.ps1` to CRLF and
+  `.command`/`.sh` to LF, so one branch can ship working launchers for
+  both platforms. Without it a checked-out `.command` fails with
+  `bad interpreter: /bin/bash^M`.
+
+### Fixed
+- **Results were written to the current working directory.**
+  `output_dir_path` is initialised to `''` in `SESSION_KEYS`, so
+  `st.session_state.get('output_dir_path', <default>)` always returned
+  `''` and the intended fallback was dead code. `Path('')` resolves to
+  `.`, so every save landed wherever the app happened to be started
+  from — which is how loose `.npz` and `.csv` exports ended up among the
+  source files. MMForge now defaults to `~/MMForge_output`, pre-fills the
+  Output Directory box, and treats a blank box as "use the default".
+- **The Streamlit lower bound was wrong.** `2_CALIBRATION.py` uses
+  `st.dialog`, added in Streamlit 1.37, but `requirements.txt` allowed
+  1.30. A fresh install could resolve to a version without it.
+- **First launch could hang forever.** On a computer where Streamlit had
+  never run, it stops and asks for an e-mail address before starting.
+  The launcher now runs Streamlit headless, which skips that prompt, and
+  opens the browser itself once `/_stcore/health` answers.
+
+### Changed
+- Every dependency has a tested upper bound. Verified working set:
+  Streamlit 1.61.1, numpy 2.2.6, scipy 1.15.3, plotly 6.9.0, pandas
+  2.3.3, matplotlib 3.10.9. Streamlit is capped below 1.62 while the GUI
+  still passes `use_container_width`, which Streamlit has deprecated in
+  favour of `width`; that rename is deferred to a later release.
+- Streamlit usage telemetry disabled (`gatherUsageStats = false`).
+- `pyproject.toml`: version 6.5.5 → 8.0.0 to match `ecm/__init__.py`,
+  `requires-python` raised to 3.10, real project URLs, dependency upper
+  bounds, and a note that it versions the ECM library rather than the
+  GUI. MMForge and ECM-Calibration are versioned independently.
+
+### Removed
+- `plans/` (design spec, 56 KB) and `data/test/` (31 MB of measurements
+  and reference exports). Neither is referenced by any code, config or
+  script, and there is no test suite that consumes them. Both remain in
+  git history. `data/assets/` and `data/tutorial/` are untouched — the
+  reflection workflow reads the former at runtime and Tutorial mode
+  needs the latter.
+- `streamlit_app/jupy-test.ipynb`, a one-cell scratch notebook.
+- The accidentally committed `.claude/worktrees` marker; `.claude/` is
+  now ignored.
+
+---
+
 ## [v2.0] - 2026-05-14
 
 Built on **ECM-Calibration v8.0.0**. Major release adding reflection-mode
