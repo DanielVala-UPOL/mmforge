@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from components.sidebar import render_sidebar
 from components.file_browser import directory_selector, directory_selector_compact
-from utils.session_state import initialize_session_state
+from utils.session_state import initialize_session_state, default_output_dir
 from utils.styling import inject_custom_css
 
 
@@ -128,7 +128,7 @@ def main():
                 directory_selector_compact(
                     label="Output Directory",
                     key="output_dir",
-                    default_path=str(Path.cwd() / "calibration_output")
+                    default_path=default_output_dir()
                 )
 
         elif current_mode == "Reflection":
@@ -144,7 +144,7 @@ def main():
                 directory_selector_compact(
                     label="Output Directory",
                     key="output_dir",
-                    default_path=str(Path.cwd() / "calibration_output")
+                    default_path=default_output_dir()
                 )
 
     # -------------------------------------------------

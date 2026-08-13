@@ -40,6 +40,7 @@ from utils.session_state import (
     get_reflection_calibration_diagnostics,
     has_any_calibration,
     full_session_reset,
+    get_output_dir,
 )
 from utils.styling import inject_custom_css, soft_divider
 
@@ -94,7 +95,7 @@ def build_config_from_session() -> ECMConfig:
     :func:`build_reflection_config_from_session`.
     """
     data_dir = st.session_state.get('data_dir_path', '')
-    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'calibration_output'))
+    output_dir = get_output_dir()
     wl_min = st.session_state.get('wl_min', 400)
     wl_max = st.session_state.get('wl_max', 1000)
 
@@ -126,7 +127,7 @@ def build_reflection_config_from_session() -> ECMConfig:
     ``n_angular_positions`` as None so the backend auto-detects.
     """
     refl_data_dir = st.session_state.get('refl_data_dir_path', '')
-    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'calibration_output'))
+    output_dir = get_output_dir()
     aoi_deg = float(st.session_state.get('refl_aoi_deg', 70.0))
     wl_min = st.session_state.get('wl_min', 400)
     wl_max = st.session_state.get('wl_max', 1000)
@@ -644,7 +645,7 @@ def save_current_calibration():
         else:
             cfg = build_config_from_session()
 
-    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'calibration_output'))
+    output_dir = get_output_dir()
 
     try:
         filepath = save_calibration(

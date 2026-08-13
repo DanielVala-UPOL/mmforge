@@ -53,6 +53,7 @@ from utils.session_state import (
     add_lu_chipman_result,
     get_calibration_result,
     get_reflection_calibration_result,
+    get_output_dir,
 )
 from utils.styling import inject_custom_css, soft_divider
 
@@ -646,7 +647,7 @@ def save_decomposition():
     cal_result = _active_cal_result()
     wavelengths = cal_result.wavelengths if cal_result else None
 
-    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'decomposition_output'))
+    output_dir = get_output_dir()
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -721,7 +722,7 @@ def _do_decomp_csv_export(selected_samples, inc_D, inc_DI, inc_R, inc_nu, inc_ch
     lc_results = get_lu_chipman_results()
     cal_result = _active_cal_result()
 
-    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'decomposition_output'))
+    output_dir = get_output_dir()
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -1231,7 +1232,7 @@ def _render_purity_tab(processed_samples: dict):
 # ============================================================================
 
 def _output_path() -> Path:
-    out = st.session_state.get('output_dir_path', str(Path.cwd() / 'decomposition_output'))
+    out = get_output_dir()
     p = Path(out)
     p.mkdir(parents=True, exist_ok=True)
     return p

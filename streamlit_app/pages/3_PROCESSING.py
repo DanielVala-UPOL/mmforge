@@ -44,6 +44,7 @@ from utils.session_state import (
     get_selected_elements,
     set_selected_elements,
     get_config,
+    get_output_dir,
 )
 from utils.styling import inject_custom_css, soft_divider
 
@@ -547,7 +548,7 @@ def save_results():
         st.error("No processed samples to save. Process samples first before exporting.")
         return
 
-    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'processing_output'))
+    output_dir = get_output_dir()
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -631,7 +632,7 @@ def _do_csv_export(selected_samples, include_normalized, include_m00, include_el
     cal_result = state['cal_result']
     ellips_results = state['ellips_results']
 
-    output_dir = st.session_state.get('output_dir_path', str(Path.cwd() / 'processing_output'))
+    output_dir = get_output_dir()
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 

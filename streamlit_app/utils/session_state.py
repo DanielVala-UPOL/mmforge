@@ -12,7 +12,43 @@ Author: Daniel Vala
 """
 
 import streamlit as st
+from pathlib import Path
 from typing import Optional, Dict, Any
+
+# ============================================================================
+# DEFAULT OUTPUT LOCATION
+# ============================================================================
+
+# Where MMForge suggests saving results when the user has not chosen a folder.
+#
+# This deliberately sits in the user's home directory and not inside the
+# MMForge folder. The launchers start the application from the project
+# directory, so a relative or empty output path used to resolve to the
+# project root and scatter .npz and .csv result files among the source
+# files. Keeping results in one predictable place outside the project also
+# means they survive re-downloading or updating MMForge.
+DEFAULT_OUTPUT_DIR = Path.home() / "MMForge_output"
+
+
+def default_output_dir() -> str:
+    """Return the suggested output folder as a string."""
+    return str(DEFAULT_OUTPUT_DIR)
+
+
+def get_output_dir() -> str:
+    """
+    Return the folder results should be written to.
+
+    Reads the user's choice from session state and falls back to the default
+    whenever that choice is missing or blank. The blank case matters: the
+    Output Directory box can be cleared by hand, and an empty path would
+    otherwise be interpreted as "the current working directory".
+    """
+    value = st.session_state.get('output_dir_path', '')
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return default_output_dir()
+
 
 # ============================================================================
 # SESSION STATE KEYS (as specified in requirements)
@@ -29,7 +65,7 @@ SESSION_KEYS = {
     'selected_elements': [],           # List of (i,j) tuples for MM elements
     # Path settings (persisted across pages)
     'data_dir_path': '',               # Transmission data directory
-    'output_dir_path': '',             # Output directory path
+    'output_dir_path': str(DEFAULT_OUTPUT_DIR),  # Where results are saved
     'sample_dir_path': '',             # Sample directory path
     # Calibration mode and auto-detected settings
     'calibration_mode': 'Transmission',  # Transmission, Reflection, or Tutorial Data
