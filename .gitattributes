@@ -41,3 +41,11 @@
 
 # Instrument measurement files carry no extension; they live only here.
 data/tutorial/*   binary
+
+# Reference data read by the app at runtime: wavelength tables, retarder
+# characterisation, wafer Psi/Delta and n/k files. Git must not rewrite
+# these. Some arrived from the vendor with CRLF endings and the bytes
+# should stay exactly as measured, so normalisation is switched off for
+# the whole directory. (numpy.loadtxt reads either ending, so this is
+# about not touching data rather than about correctness.)
+data/assets/*     -text
