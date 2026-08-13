@@ -358,12 +358,14 @@ python -m pip install pillow           # only needed for this script
 python tools/build_icons.py
 ```
 
-The design is deliberate: the anvil-and-sparks mark, recoloured white, on
-a dark navy rounded square. Both the macOS Dock and the Windows Desktop
-expect a filled rounded square — the bare logo has a transparent
-background and reads as a floating wide sticker next to Word and Excel.
-Navy rather than white because most Dock icons are already white. The
-MM·FORGE wordmark is dropped: it is unreadable below about 64 px.
+The design is deliberate. Both the macOS Dock and the Windows Desktop
+expect a filled rounded square, and the bare logo has a transparent
+background, so it read as a floating wide sticker next to Word and Excel.
+Only the **scattered-squares mark** from the right of the logo is used:
+that region is 453×447 px, effectively square, so it fills an icon plate.
+The anvil is 2:1 and shrinks to a letterbox strip inside a square; the
+MM·FORGE wordmark is unreadable below about 64 px. Both are left out.
+Navy plate rather than white because most Dock icons are already white.
 
 Changing the icon means re-running the platform installer afterwards, so
 the Desktop shortcut and `~/Applications/MMForge.app` pick it up.

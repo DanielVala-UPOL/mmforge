@@ -15,9 +15,12 @@ Inputs and outputs
         -> tools/mmforge.png              1024x1024, source for the macOS .icns
         -> tools/mmforge.ico              multi-size, used by the Windows shortcut
 
-The design: the anvil and spark mark (without the MM-FORGE wordmark, which is
-unreadable at 32 px) recoloured white, centred on a dark navy rounded square.
-Navy rather than white because the Dock is full of white icons.
+The design: only the scattered-squares mark from the right-hand side of the
+logo, centred on a dark navy rounded square. That part of the logo is almost
+exactly square (453 x 447 px), so it fills an icon plate properly. The anvil
+and the MM-FORGE wordmark are both left out - the anvil is wide, so it shrinks
+to a letterbox strip inside a square, and the wordmark is unreadable below
+about 64 px. Navy rather than white because the Dock is full of white icons.
 
 How to regenerate
 -----------------
@@ -53,11 +56,11 @@ NAVY = (45, 62, 80, 255)
 CANVAS = 1024
 PLATE_RATIO = 0.90       # rounded square as a fraction of the canvas
 CORNER_RATIO = 0.225     # corner radius as a fraction of the plate
-ART_RATIO = 0.84         # mark width as a fraction of the plate
+ART_RATIO = 0.62         # mark size as a fraction of the plate
 
-# Bounding box of the anvil-and-sparks mark inside the logo, excluding the
-# MM-FORGE wordmark underneath. Measured from the 1767x876 source.
-MARK_BOX = (151, 114, 1606, 564)
+# Bounding box of the scattered-squares mark inside the logo, measured from
+# the 1767x876 source. 453 x 447 px, so effectively square.
+MARK_BOX = (1153, 117, 1606, 564)
 
 ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48),
              (64, 64), (128, 128), (256, 256)]
@@ -77,20 +80,11 @@ def drop_white_background(image):
     return Image.fromarray(pixels.astype("uint8"), "RGBA")
 
 
-def recolour_navy_to_white(image):
-    """Repaint the dark navy parts white so they read against a navy plate."""
-    pixels = np.array(image).astype(np.int16)
-    distance = np.abs(pixels[..., :3] - np.array(NAVY[:3])).sum(axis=2)
-    is_navy = distance < 200
-    pixels[is_navy, 0] = 255
-    pixels[is_navy, 1] = 255
-    pixels[is_navy, 2] = 255
-    return Image.fromarray(pixels.astype("uint8"), "RGBA")
-
-
 def build_icon():
     logo = Image.open(LOGO).convert("RGBA")
-    mark = recolour_navy_to_white(drop_white_background(logo).crop(MARK_BOX))
+    # The squares are already MMForge pink, which reads well on navy, so
+    # unlike the anvil they need no recolouring.
+    mark = drop_white_background(logo).crop(MARK_BOX)
 
     plate_size = int(CANVAS * PLATE_RATIO)
     radius = int(plate_size * CORNER_RATIO)
@@ -104,7 +98,7 @@ def build_icon():
     offset = (CANVAS - plate_size) // 2
     icon.alpha_composite(plate, (offset, offset))
 
-    scale = (plate_size * ART_RATIO) / mark.width
+    scale = (plate_size * ART_RATIO) / max(mark.width, mark.height)
     mark = mark.resize(
         (int(mark.width * scale), int(mark.height * scale)), Image.LANCZOS
     )
