@@ -3,12 +3,17 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
+# This describes the ECM algorithm library in ecm/, not the MMForge GUI.
+# The two are versioned independently: MMForge 2.1.0 is built on ECM 8.0.0.
+# Keep this number in step with ecm/__init__.py __version__.
 name = "ecm-polarimetry"
-version = "6.5.5"
-description = "Ellipsometric Calibration Method for Mueller Matrix Polarimetry"
+version = "8.0.0"
+description = "Eigenvalue Calibration Method for Mueller Matrix Polarimetry"
 readme = "README.md"
 license = {text = "Proprietary"}
-requires-python = ">=3.9"
+# 3.10 rather than 3.9: it is the oldest version the MMForge installers
+# accept, and testing below it would be dishonest.
+requires-python = ">=3.10"
 authors = [
     {name = "Daniel Vala"}
 ]
@@ -26,25 +31,29 @@ classifiers = [
     "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Chemistry",
     "Typing :: Typed",
 ]
+# Library-only dependencies. The GUI needs more (streamlit, plotly,
+# pandas); those live in requirements.txt, which is what the MMForge
+# installers use.
 dependencies = [
-    "numpy>=1.24.0",
-    "scipy>=1.10.0",
-    "matplotlib>=3.7.0",
-    "pyyaml>=6.0",
-    "tqdm>=4.65.0",
+    "numpy>=1.24,<3",
+    "scipy>=1.10,<2",
+    "matplotlib>=3.7,<4",
+    "pyyaml>=6.0,<7",
+    "tqdm>=4.65,<5",
 ]
 
 [project.urls]
-"Source" = "https://github.com/your-username/ecm-calibration"
-"Documentation" = "https://github.com/your-username/ecm-calibration#readme"
+"Source" = "https://github.com/DanielVala-UPOL/mmforge"
+"Documentation" = "https://github.com/DanielVala-UPOL/mmforge#readme"
+"Changelog" = "https://github.com/DanielVala-UPOL/mmforge/blob/production/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["."]

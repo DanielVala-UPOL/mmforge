@@ -1,0 +1,61 @@
+MMForge - Your Mueller Matrix Workbench
+Copyright (c) 2026 Daniel Vala, Department of Optics,
+Palacky University Olomouc. All rights reserved.
+
+
+TERMS
+-----
+
+This software and its source code are made publicly visible so that the
+methods behind published results can be inspected and verified. Public
+visibility is not a grant of licence.
+
+No permission is given to use, copy, modify, merge, publish, distribute,
+sublicense or sell this software, in whole or in part, without prior
+written permission from the copyright holder.
+
+Requests for permission - including academic use, collaboration and
+adaptation to other instruments - are welcome. Please contact:
+
+    Daniel Vala <daniel.vala@upol.cz>
+    Department of Optics, Palacky University Olomouc
+
+
+CITATION
+--------
+
+If permission has been granted and this software contributes to published
+work, please cite MMForge along with the methods it implements:
+
+  Compain, E., Poirier, S., Drevillon, B. "General and self-consistent
+  method for the calibration of polarization modulators, polarimeters,
+  and Mueller-matrix ellipsometers." Applied Optics 38, 3490-3502 (1999).
+
+  Rosales, A. et al. "Extended eigenvalue calibration method for
+  overdetermined Mueller matrix polarimeters." Optics Letters 49,
+  1165-1168 (2024).
+
+  Lu, S.-Y., Chipman, R. A. "Interpretation of Mueller matrices based on
+  polar decomposition." Journal of the Optical Society of America A 13,
+  1106-1113 (1996).
+
+  Gil, J. J., Ossikovski, R. "Polarized Light and the Mueller Matrix
+  Approach", 2nd ed. CRC Press (2022).
+
+
+DISCLAIMER
+----------
+
+The Eigenvalue Calibration Method imposes specific requirements on the
+instrument. This release targets the custom-built Mueller matrix
+spectroscopic ellipsometer at the Department of Optics, Palacky
+University Olomouc, and may produce incorrect results on instruments of
+a different design without modification.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
