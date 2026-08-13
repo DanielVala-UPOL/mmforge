@@ -88,8 +88,9 @@ MMForge/
 │   ├── create_windows_shortcut.ps1
 │   ├── create_macos_app.sh       ← builds ~/Applications/MMForge.app
 │   ├── build_readme_html.py      ← README.md → README.html (run by hand)
-│   ├── mmforge.ico               ← Windows shortcut icon
-│   └── mmforge.png               ← source for the macOS .icns
+│   ├── build_icons.py            ← logo → mmforge.png/.ico (run by hand)
+│   ├── mmforge.ico               ← Windows shortcut icon   (generated)
+│   └── mmforge.png               ← source for the macOS .icns (generated)
 ├── MMForge.bat                   # Windows: double-click to run
 ├── MMForge.command               # macOS:   double-click to run
 ├── Install-Windows.bat           # Windows: one-time setup
@@ -347,6 +348,25 @@ python tools/build_readme_html.py
 It exists so someone who was handed the folder — no GitHub, no editor —
 can double-click a file and read formatted instructions. The output is
 self-contained: CSS inlined, logo embedded as a data URI.
+
+The launcher icons are generated too. `tools/mmforge.png` (1024×1024, the
+source for the macOS `.icns`) and `tools/mmforge.ico` (Windows) both come
+from `streamlit_app/assets/MMForge_v1.png` via:
+
+```
+python -m pip install pillow           # only needed for this script
+python tools/build_icons.py
+```
+
+The design is deliberate: the anvil-and-sparks mark, recoloured white, on
+a dark navy rounded square. Both the macOS Dock and the Windows Desktop
+expect a filled rounded square — the bare logo has a transparent
+background and reads as a floating wide sticker next to Word and Excel.
+Navy rather than white because most Dock icons are already white. The
+MM·FORGE wordmark is dropped: it is unreadable below about 64 px.
+
+Changing the icon means re-running the platform installer afterwards, so
+the Desktop shortcut and `~/Applications/MMForge.app` pick it up.
 
 ---
 
