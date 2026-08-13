@@ -1,0 +1,43 @@
+# MMForge - line-ending and file-type rules
+# =========================================
+#
+# Why this file matters: MMForge ships launchers for both Windows and macOS
+# from a single branch. Without explicit rules, Git can hand a macOS user a
+# .command file with Windows line endings, which fails with the classic
+#   /bin/bash^M: bad interpreter: No such file or directory
+# and can hand a Windows user a .bat with Unix line endings, which misbehaves
+# around labels and goto. The rules below pin each script to the endings its
+# interpreter expects, no matter which OS commits or checks out.
+
+# Let Git decide for ordinary text files, normalising to LF in the repository.
+* text=auto
+
+# --- Windows scripts: must be CRLF ---------------------------------------
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# --- Unix scripts: must be LF --------------------------------------------
+*.command   text eol=lf
+*.sh        text eol=lf
+
+# --- Plain text that both platforms read ---------------------------------
+*.md        text
+*.py        text
+*.toml      text
+*.txt       text
+*.yml       text
+*.yaml      text
+
+# --- Binary: never normalise, never diff as text -------------------------
+*.bin       binary
+*.npz       binary
+*.ico       binary
+*.icns      binary
+*.png       binary
+*.jpg       binary
+*.pdf       binary
+*.ipynb     binary
+
+# Instrument measurement files carry no extension; they live only here.
+data/tutorial/*   binary

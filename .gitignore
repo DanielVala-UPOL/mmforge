@@ -1,5 +1,12 @@
 # macOS
 .DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Desktop.ini
 
 # Python
 __pycache__/
@@ -10,14 +17,15 @@ dist/
 build/
 .eggs/
 
-# Virtual environment
+# Virtual environment (created by the installer)
 .venv/
 venv/
 ENV/
 
-# IDE
+# IDE / assistant scratch
 .vscode/
 .idea/
+.claude/
 
 # Test/Coverage
 .pytest_cache/
@@ -27,6 +35,19 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 
-# Data files (uncomment if you have large data)
-# *.bin
-# data/.claude/
+# Generated macOS launcher artefacts (built by tools/create_macos_app.sh)
+MMForge.app/
+tools/mmforge.icns
+
+# Analysis output written by the app.
+# The GUI defaults to ~/MMForge_output, but users can point it anywhere -
+# including here - so keep these out of the repository.
+calibration_output/
+processing_output/
+decomposition_output/
+
+# Stray result files dropped in the project root (exports, saved sessions).
+# Only the repository root is matched, so data/assets/*.txt and the bundled
+# tutorial files are unaffected.
+/*.csv
+/*.npz

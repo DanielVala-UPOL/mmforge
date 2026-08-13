@@ -1,5 +1,16 @@
+# MMForge - Streamlit configuration
+# =================================
+# Streamlit reads this file because it sits next to the main script
+# (streamlit_app/HOME.py), so the settings apply no matter which directory
+# the app was launched from.
+
 [client]
 toolbarMode = "minimal"
+
+[browser]
+# No usage statistics are sent. MMForge is used on instrument computers in
+# a university lab; outbound telemetry is neither needed nor wanted.
+gatherUsageStats = false
 
 [theme]
 # Lock to light theme with MMForge primary color
