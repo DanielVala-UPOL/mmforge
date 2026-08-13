@@ -1,27 +1,34 @@
-# MMForge - Streamlit Cloud Dependencies
-# =======================================
-# Optimized for deployment - unused packages removed
+# MMForge - Python dependencies
+# ==============================
 #
-# Install with: pip install -r requirements.txt
+# Installed automatically by Install-Windows.bat / Install-macOS.command.
+# To install by hand:  python -m pip install -r requirements.txt
+#
+# Every entry has BOTH a lower and an upper bound. The lower bound is the
+# oldest version MMForge is known to work with; the upper bound stops a
+# future release from silently breaking the app on a fresh install.
 
-# Core scientific computing
-numpy>=1.24.0
-scipy>=1.10.0
+# --- Core scientific computing -------------------------------------------
+numpy>=1.24,<3
+scipy>=1.10,<2
 
-# Visualization (backend)
-matplotlib>=3.7.0
+# --- Visualization -------------------------------------------------------
+matplotlib>=3.7,<4          # backend plots (ecm/visualization)
+plotly>=5.18,<7             # all GUI figures (streamlit_app/components/plots_plotly.py)
 
-# GUI framework
-streamlit>=1.30.0
+# --- GUI framework -------------------------------------------------------
+# Lower bound 1.37: the Calibration page uses st.dialog, added in 1.37.
+# Upper bound 1.62: the GUI still passes use_container_width=..., which
+#   Streamlit deprecated in favour of width=... and will remove in a future
+#   release. Verified working on 1.61.1. Lift this cap only together with
+#   the rename (tracked for a later MMForge release).
+streamlit>=1.37,<1.62
 
-# Interactive plotting
-plotly>=5.18.0
+# --- Data handling -------------------------------------------------------
+pandas>=2.0,<3
 
-# Data handling
-pandas>=2.0.0
+# --- Configuration serialization -----------------------------------------
+pyyaml>=6.0,<7
 
-# Configuration serialization
-pyyaml>=6.0
-
-# Progress bars for calibration
-tqdm>=4.65.0
+# --- Progress bars (backend, terminal only) ------------------------------
+tqdm>=4.65,<5
