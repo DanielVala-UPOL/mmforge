@@ -87,6 +87,7 @@ MMForge/
 │   ├── setup_env.py              ← shared: venv + pip + self-check
 │   ├── create_windows_shortcut.ps1
 │   ├── create_macos_app.sh       ← builds ~/Applications/MMForge.app
+│   ├── build_readme_html.py      ← README.md → README.html (run by hand)
 │   ├── mmforge.ico               ← Windows shortcut icon
 │   └── mmforge.png               ← source for the macOS .icns
 ├── MMForge.bat                   # Windows: double-click to run
@@ -94,6 +95,7 @@ MMForge/
 ├── Install-Windows.bat           # Windows: one-time setup
 ├── Install-macOS.command         # macOS:   one-time setup
 ├── README.md                     # the user-facing install story
+├── README.html                   # same, generated, for offline readers
 ├── LICENSE
 ├── .gitattributes                # CRLF for .bat, LF for .command
 └── data/
@@ -333,6 +335,18 @@ Design rules, each of which exists for a reason:
 If you add a file that either platform executes, add its extension to
 `.gitattributes` and set the exec bit with
 `git update-index --chmod=+x`.
+
+`README.html` is generated, not written by hand. After editing
+`README.md`, regenerate it in the same commit:
+
+```
+python -m pip install markdown       # only needed for this script
+python tools/build_readme_html.py
+```
+
+It exists so someone who was handed the folder — no GitHub, no editor —
+can double-click a file and read formatted instructions. The output is
+self-contained: CSS inlined, logo embedded as a data URI.
 
 ---
 

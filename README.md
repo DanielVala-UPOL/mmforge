@@ -1,7 +1,7 @@
 # MMForge
 
 **Your Mueller Matrix Workbench** — calibration, processing and analysis for
-Mueller matrix spectroscopic polarimetry, in your web browser.
+Mueller matrix spectroscopic polarimetry, locally in your web browser.
 
 ![MMForge](streamlit_app/assets/MMForge_v1.png)
 
@@ -204,7 +204,7 @@ environment and only installs what changed.
 
 ## Troubleshooting
 
-<details>
+<details markdown="1">
 <summary><b>Nothing happens when I double-click the icon</b></summary>
 
 The shortcut points at a fixed location. If you moved or renamed the MMForge
@@ -214,7 +214,7 @@ Open the MMForge folder and run the installer again. It rebuilds the shortcut
 with the new path.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>"The MMForge Python environment is missing"</b></summary>
 
 The `.venv` folder was never created, or was deleted.
@@ -222,7 +222,7 @@ The `.venv` folder was never created, or was deleted.
 Run `Install-Windows.bat` / `Install-macOS.command` once and try again.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>"Python was not found on this computer" (Windows)</b></summary>
 
 Either Python is not installed, or it was installed without being added to
@@ -235,7 +235,7 @@ If Windows opens the Microsoft Store when you type `python`, that is a
 placeholder rather than a real Python. The python.org installer replaces it.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>macOS says the file is from an unidentified developer</b></summary>
 
 macOS blocks scripts that arrived inside a downloaded ZIP.
@@ -246,7 +246,7 @@ dialog. You only need to do this once per file.
 To avoid the warning entirely, download MMForge with `git clone` instead.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>The browser does not open</b></summary>
 
 The server is probably running anyway. Open your browser and go to:
@@ -258,7 +258,7 @@ http://localhost:8501
 If the launcher window reported a different port number, use that one instead.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>"Port 8501 was busy, using 8502 instead"</b></summary>
 
 This is not an error — MMForge is telling you it found the usual port occupied
@@ -266,7 +266,7 @@ and moved to the next one. Usually it means MMForge is already running in
 another window.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>Windows Firewall asked for permission</b></summary>
 
 MMForge listens only on your own computer (`127.0.0.1`), so it should not
@@ -274,7 +274,7 @@ trigger a prompt. If something else caused one, you can safely decline —
 MMForge does not need network access.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>The installation is very slow, or fails part-way</b></summary>
 
 Two common causes:
@@ -285,7 +285,7 @@ Two common causes:
   the exact error from pip; that message is what your IT department needs.
 </details>
 
-<details>
+<details markdown="1">
 <summary><b>It worked before and now it does not</b></summary>
 
 Run the installer again. It is safe to re-run at any time and repairs most
