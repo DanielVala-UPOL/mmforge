@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 # Local imports
 from components.sidebar import render_sidebar
 from utils.session_state import initialize_session_state
-from utils.theme import sync_theme
+from utils.theme import sync_theme, palette, is_dark, rgba
 from utils.styling import inject_custom_css, soft_divider
 
 
@@ -44,9 +44,10 @@ inject_custom_css()
 initialize_session_state()
 
 # Notice a theme switch and rerun once, so the Plotly figures are
-# rebuilt with the new palette instead of lagging a frame behind
-# the chrome. Must run after initialize_session_state(), which
-# creates the key this compares against.
+# rebuilt with the new palette. Note this fires on the next rerun
+# after the switch, not at the moment of switching — Streamlit does
+# not re-run the script when the theme changes. Must run after
+# initialize_session_state(), which creates the key it compares to.
 sync_theme()
 
 
@@ -97,13 +98,21 @@ def main():
     soft_divider()
     st.subheader("Workflow tutorial")
 
-    # CSS for enhanced workflow cards with left border accent and hover effects
-    st.markdown("""
+    # CSS for enhanced workflow cards with left border accent and hover effects.
+    # Colours come from the active palette: the card is a raised surface, so
+    # in light mode it is a shade *lighter* than the page and in dark mode a
+    # shade lighter than the (much darker) page — the gradient runs panel →
+    # background either way. The tab underline has no palette token of its
+    # own; light keeps the softer magenta it has always used and dark takes
+    # the primary-hover tint, which plays the same "lighter accent" role.
+    p = palette()
+    tab_underline = '#FF6B9D' if not is_dark() else p['primary_hover']
+    st.markdown(f"""
     <style>
-    .workflow-card {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-        border: 1px solid #E0E0E0;
-        border-left: 4px solid #2D3E50;
+    .workflow-card {{
+        background: linear-gradient(135deg, {p['panel']} 0%, {p['bg']} 100%);
+        border: 1px solid {p['border']};
+        border-left: 4px solid {p['structural']};
         border-radius: 8px;
         padding: 20px 16px;
         height: 120px;
@@ -111,40 +120,40 @@ def main():
         flex-direction: column;
         justify-content: center;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .workflow-card:hover {
+    }}
+    .workflow-card:hover {{
         transform: translateY(-3px);
-        box-shadow: 0 6px 16px rgba(45, 62, 80, 0.15);
-    }
-    .workflow-card .step-number {
+        box-shadow: 0 6px 16px {rgba(p['structural'], 0.15)};
+    }}
+    .workflow-card .step-number {{
         font-size: 1.8em;
         font-weight: 700;
-        color: #FF1F5B;
+        color: {p['primary']};
         margin-bottom: 4px;
         line-height: 1;
-    }
-    .workflow-card .step-title {
+    }}
+    .workflow-card .step-title {{
         font-size: 1.05em;
         font-weight: 600;
-        color: #2D3E50;
+        color: {p['structural']};
         margin-bottom: 6px;
-    }
-    .workflow-card .step-desc {
+    }}
+    .workflow-card .step-desc {{
         font-size: 0.85em;
-        color: #666;
+        color: {p['text_dim']};
         margin: 0;
-    }
+    }}
     /* Tab styling for gentle color coding and full width distribution */
-    .stTabs [data-baseweb="tabs"] [aria-selected="true"] {
-        border-bottom-color: #FF6B9D !important;
-    }
-    .stTabs [data-baseweb="tabs"] {
+    .stTabs [data-baseweb="tabs"] [aria-selected="true"] {{
+        border-bottom-color: {tab_underline} !important;
+    }}
+    .stTabs [data-baseweb="tabs"] {{
         width: 100%;
-    }
-    .stTabs [data-baseweb="tabs"] button[role="tab"] {
+    }}
+    .stTabs [data-baseweb="tabs"] button[role="tab"] {{
         flex: 1;
         text-align: center;
-    }
+    }}
     </style>
     """, unsafe_allow_html=True)
 

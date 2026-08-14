@@ -232,6 +232,18 @@ def sync_theme() -> str:
     that run. Comparing against the value stored on the previous run and
     triggering a single ``st.rerun()`` rebuilds them with the new one.
 
+    **What this does not do.** Flipping the theme does not itself re-run the
+    Python script - Streamlit only restyles the page in the browser - so
+    this function cannot fire at that moment. The figures already on screen
+    keep the old palette until the next rerun for any reason: changing page,
+    pressing a button, moving a widget. Measured on 1.61.1: switching the
+    theme while sitting on a page leaves its charts alone, and navigating
+    away and back repaints them.
+
+    Closing that gap would mean polling from a fragment on a timer, which is
+    not something to add to pages that run calibrations, and a second custom
+    toggle is ruled out (see the module docstring). The lag is accepted.
+
     The first run of a session stores the value without rerunning: there is
     nothing to catch up with yet, and the browser-reported value is least
     trustworthy at exactly that moment.

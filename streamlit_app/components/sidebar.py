@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.session_state import is_calibrated, is_reflection_calibrated
 from utils.styling import soft_divider
+from utils.theme import palette, is_dark
 
 
 # ============================================================================
@@ -183,27 +184,32 @@ def render_sidebar():
         # -------------------------------------------------
         # Version info at absolute bottom using CSS
         # -------------------------------------------------
+        p = palette()
+        # The version block's hairline has no palette token: light mode has
+        # always used a bare #ddd, and dark takes the border colour, which
+        # separates the block from the sidebar the same way.
+        version_rule = '#ddd' if not is_dark() else p['border']
         st.markdown(
-            """
+            f"""
             <style>
-            [data-testid="stSidebar"] > div:first-child {
+            [data-testid="stSidebar"] > div:first-child {{
                 display: flex;
                 flex-direction: column;
                 height: 100vh;
-            }
-            [data-testid="stSidebarContent"] {
+            }}
+            [data-testid="stSidebarContent"] {{
                 flex: 1;
                 display: flex;
                 flex-direction: column;
-            }
-            .sidebar-version {
+            }}
+            .sidebar-version {{
                 margin-top: auto;
                 padding: 20px 0;
                 text-align: center;
-                color: #666;
+                color: {p['text_dim']};
                 font-size: 0.7em;
-                border-top: 1px solid #ddd;
-            }
+                border-top: 1px solid {version_rule};
+            }}
             </style>
             <div class="sidebar-version">
                 <strong>MMForge v2.1.0</strong><br>

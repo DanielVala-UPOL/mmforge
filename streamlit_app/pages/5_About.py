@@ -39,9 +39,10 @@ inject_custom_css()
 initialize_session_state()
 
 # Notice a theme switch and rerun once, so the Plotly figures are
-# rebuilt with the new palette instead of lagging a frame behind
-# the chrome. Must run after initialize_session_state(), which
-# creates the key this compares against.
+# rebuilt with the new palette. Note this fires on the next rerun
+# after the switch, not at the moment of switching — Streamlit does
+# not re-run the script when the theme changes. Must run after
+# initialize_session_state(), which creates the key it compares to.
 sync_theme()
 
 
