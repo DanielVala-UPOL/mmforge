@@ -14,13 +14,23 @@ Inputs and outputs
     streamlit_app/assets/MMForge_v1.png   the logo (wide, white background)
         -> tools/mmforge.png              1024x1024, source for the macOS .icns
         -> tools/mmforge.ico              multi-size, used by the Windows shortcut
+        -> streamlit_app/assets/MMForge_v1_dark.png
+                                          the logo for the app's dark theme
 
-The design: only the scattered-squares mark from the right-hand side of the
-logo, centred on a dark navy rounded square. That part of the logo is almost
-exactly square (453 x 447 px), so it fills an icon plate properly. The anvil
-and the MM-FORGE wordmark are both left out - the anvil is wide, so it shrinks
-to a letterbox strip inside a square, and the wordmark is unreadable below
-about 64 px. Navy rather than white because the Dock is full of white icons.
+The icon design: only the scattered-squares mark from the right-hand side of
+the logo, centred on a dark navy rounded square. That part of the logo is
+almost exactly square (453 x 447 px), so it fills an icon plate properly. The
+anvil and the MM-FORGE wordmark are both left out - the anvil is wide, so it
+shrinks to a letterbox strip inside a square, and the wordmark is unreadable
+below about 64 px. Navy rather than white because the Dock is full of white
+icons.
+
+The dark-theme logo: the same artwork with the white background dropped and
+the slate ink repainted. Dropping the background is not enough on its own -
+the anvil and the wordmark are drawn in #2D3E50, which lands at contrast 1.71
+on the dark theme's #161C24 background, so they would simply disappear and
+leave the magenta squares floating on their own. The squares are untouched;
+they read well on either background.
 
 How to regenerate
 -----------------
@@ -49,9 +59,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LOGO = PROJECT_ROOT / "streamlit_app" / "assets" / "MMForge_v1.png"
 PNG_OUT = PROJECT_ROOT / "tools" / "mmforge.png"
 ICO_OUT = PROJECT_ROOT / "tools" / "mmforge.ico"
+DARK_LOGO_OUT = PROJECT_ROOT / "streamlit_app" / "assets" / "MMForge_v1_dark.png"
 
 # MMForge brand navy, sampled from the logo.
 NAVY = (45, 62, 80, 255)
+
+# The ink the anvil and wordmark are repainted in for the dark theme. This is
+# the dark palette's text colour (DARK['text'] in streamlit_app/utils/theme.py)
+# - keep the two in step if that value ever changes.
+DARK_INK = (221, 227, 234)
 
 CANVAS = 1024
 PLATE_RATIO = 0.90       # rounded square as a fraction of the canvas
@@ -78,6 +94,35 @@ def drop_white_background(image):
     alpha = np.clip(distance_from_white * 6, 0, 255)
     pixels[..., 3] = np.minimum(pixels[..., 3], alpha)
     return Image.fromarray(pixels.astype("uint8"), "RGBA")
+
+
+def repaint_slate_ink(image, ink=DARK_INK):
+    """
+    Repaint the logo's slate parts, leaving the magenta squares alone.
+
+    The two inks separate cleanly on one test: the slate (45, 62, 80) has
+    more blue than red, and the magenta (255, 31, 93) has far more red than
+    blue. That holds for the anti-aliased pixels in between as well, since
+    blending either ink towards white preserves the ordering.
+
+    Only the RGB channels are touched. Alpha already carries the edge
+    softness from ``drop_white_background``, so the glyph edges stay smooth
+    rather than turning into a hard cut-out.
+    """
+    pixels = np.array(image).astype(np.int16)
+    red, blue, alpha = pixels[..., 0], pixels[..., 2], pixels[..., 3]
+
+    is_slate = (blue >= red) & (alpha > 0)
+    for channel, value in enumerate(ink):
+        pixels[..., channel] = np.where(is_slate, value, pixels[..., channel])
+
+    return Image.fromarray(pixels.astype("uint8"), "RGBA")
+
+
+def build_dark_logo():
+    """The logo as it should appear on the app's dark background."""
+    logo = Image.open(LOGO).convert("RGBA")
+    return repaint_slate_ink(drop_white_background(logo))
 
 
 def build_icon():
@@ -121,6 +166,11 @@ def main():
 
     icon.save(ICO_OUT, format="ICO", sizes=ICO_SIZES)
     print("Written " + str(ICO_OUT) + "  " + str([s[0] for s in ICO_SIZES]))
+
+    dark_logo = build_dark_logo()
+    dark_logo.save(DARK_LOGO_OUT)
+    print("Written " + str(DARK_LOGO_OUT) + "  "
+          + str(dark_logo.width) + "x" + str(dark_logo.height))
 
     print("")
     print("macOS: re-run the installer (or bash tools/create_macos_app.sh)")

@@ -68,7 +68,17 @@ def main():
     # -------------------------------------------------
     # Header with Logo and Title
     # -------------------------------------------------
-    logo_path = Path(__file__).parent / "assets" / "MMForge_v1.png"
+    # The dark theme gets its own file. Simply making the background
+    # transparent would not be enough: the anvil and the MM-FORGE wordmark are
+    # drawn in the slate #2D3E50, which sits at contrast 1.71 on the dark
+    # background, so they would vanish and leave the magenta squares floating
+    # by themselves. The variant repaints that ink; see tools/build_icons.py,
+    # which generates it. Falls back to the light logo if it is missing.
+    assets_dir = Path(__file__).parent / "assets"
+    logo_path = assets_dir / ("MMForge_v1_dark.png" if is_dark()
+                              else "MMForge_v1.png")
+    if not logo_path.exists():
+        logo_path = assets_dir / "MMForge_v1.png"
 
     col1, col2 = st.columns([1, 3])
     with col1:
