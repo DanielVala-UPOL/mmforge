@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from components.sidebar import render_sidebar
 from utils.session_state import initialize_session_state
+from utils.theme import sync_theme
 from utils.styling import inject_custom_css
 
 
@@ -36,6 +37,12 @@ inject_custom_css()
 # ============================================================================
 
 initialize_session_state()
+
+# Notice a theme switch and rerun once, so the Plotly figures are
+# rebuilt with the new palette instead of lagging a frame behind
+# the chrome. Must run after initialize_session_state(), which
+# creates the key this compares against.
+sync_theme()
 
 
 # ============================================================================

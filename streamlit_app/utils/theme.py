@@ -209,6 +209,19 @@ def quality_colors(theme_name: Optional[str] = None) -> Dict[str, str]:
     return palette(theme_name)['quality']
 
 
+def rgba(hex_color: str, alpha: float) -> str:
+    """Return ``hex_color`` as a CSS/Plotly ``rgba()`` string at ``alpha``.
+
+    Both the injected CSS and the Plotly legend fills need translucent
+    versions of palette colours. Deriving them here keeps the source of
+    truth in one place instead of spreading pre-computed rgba triplets
+    around the codebase.
+    """
+    h = hex_color.lstrip('#')
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return f'rgba({r}, {g}, {b}, {alpha})'
+
+
 def sync_theme() -> str:
     """Detect a theme change and rerun once so every figure catches up.
 

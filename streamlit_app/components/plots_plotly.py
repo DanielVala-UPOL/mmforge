@@ -21,7 +21,7 @@ Author: Daniel Vala
 # - Font sizes: FONT_SIZE_* constants defined below
 # - Grid: Always show grid (except Quality Breakdown)
 # - No box frames around plots
-# - Blue (TRACE_COLORS[0]) for single traces, TRACE_COLORS for multi-sample overlays
+# - trace_colors()[0] for single traces, trace_colors() for multi-sample overlays
 # - Wavelength on x-axis with label "Wavelength (nm)"
 # - Y-axis labels specific to parameter (e.g., "DI", "R (deg)", "ν (deg)")
 # - Use subscript HTML format for matrix elements (M<sub>11</sub>)
@@ -32,6 +32,8 @@ from plotly.subplots import make_subplots
 import numpy as np
 from numpy import ndarray
 from typing import Optional, List, Tuple, Dict
+
+from utils.theme import palette, is_dark, rgba, HEATMAP_COLORSCALE
 
 
 # ============================================================================
@@ -58,14 +60,14 @@ SUBPLOT_TITLE_YSHIFT = 12
 # Global axis-frame styling (applied by ``apply_common_styling``)
 # ----------------------------------------------------------------------------
 # Every "data plot" (i.e. anything except the QualityBreakdown bar chart)
-# gets a thin black rectangular box around its plot area — Plotly's
+# gets a thin rectangular box around its plot area — Plotly's
 # ``showline=True, mirror=True`` combination. For ``make_subplots``
-# figures, each subplot gets its own box.
+# figures, each subplot gets its own box. The box is black in light mode
+# and a muted grey in dark: the *width* is fixed here, the *colour* comes
+# from the active palette (see ``chart_axis`` below).
 AXIS_BOX_WIDTH = 1.2
-AXIS_BOX_COLOR = 'black'
 
 # Grid styling
-GRID_COLOR = '#E8E8E8'
 GRID_WIDTH = 1
 
 # Layout margins / legend (sized so the legend below the plot doesn't
@@ -76,38 +78,51 @@ LEGEND_Y_OFFSET = -0.24
 # ============================================================================
 # MMFORGE COLOR PALETTE
 # ============================================================================
+# Colours are deliberately *not* module constants any more. They are looked
+# up per call from the theme that is active in the current script run
+# (streamlit_app/utils/theme.py). A constant evaluated at import time would
+# freeze whichever theme happened to be active the first time the module was
+# imported, and Streamlit imports a module once per process, not once per
+# session — so every later session, and every theme switch, would get the
+# wrong palette.
+#
+# The light values these functions return are exactly the literals that used
+# to sit here; the light theme does not move.
 
-# Primary brand color
-PRIMARY_COLOR = '#FF1F5B'
 
-# Quality tier colors (muted versions for charts)
-QUALITY_COLORS = {
-    'excellent': '#0C8AB3',  # Blue
-    'good': '#56D39A',       # Green
-    'acceptable': '#E8C34A', # Gold
-    'marginal': '#FF1F5B',   # Magenta (Brand color)
-    'poor': '#C22026',       # Dark red
-}
+def primary_color() -> str:
+    """The brand accent, for figures that need the house colour."""
+    return palette()['primary']
 
-# Multi-trace color sequence for comparison plots
-TRACE_COLORS = [
-    '#0C8AB3',  # Blue (1st)
-    '#FF1F5B',  # Magenta/Brand color (2nd)
-    '#56D39A',  # Green (3rd)
-    '#E8C34A',  # Gold (4th)
-    "#EC3CF9",  # Pink (5th)
-    '#9467bd',  # Purple (6th)
-    '#8c564b',  # Brown (7th)
-    '#7f7f7f',  # Gray (8th)
-    "#20c9e7",  # Cyan (9th)
-    "#a6b840",  # Army (10th)
-    "#1AFF00",  # GREEN! (11th)
-    "#f6ff00",  # Yellow (12th)
-    "#0015ff",  # BLUE! (13th)
-    "#ff7b00",  # Orange (14th)
-    "#FF0000",  # RED! (15th)
-    "#000000",  # Black (16th)
-]
+
+def quality_colors() -> Dict[str, str]:
+    """Calibration-quality tier colours, keyed 'excellent' … 'poor'."""
+    return palette()['quality']
+
+
+def trace_colors() -> List[str]:
+    """The 16-entry multi-sample trace sequence for the active theme."""
+    return palette()['traces']
+
+
+def _trace(idx: int) -> str:
+    """Trace colour for series ``idx``, cycling through the sequence."""
+    seq = trace_colors()
+    return seq[idx % len(seq)]
+
+
+def _ink() -> str:
+    """Colour for the curves that are drawn in plain black in light mode.
+
+    The eigenvalue-ratio trace and the purity-space boundary curves (with
+    their matching bold zerolines) are black on white today. Black is
+    *data* ink there, not chrome, so on a near-black panel it becomes the
+    bright chart text colour rather than the dim axis colour — the axis
+    grey would leave the main curve barely readable. In light mode this
+    returns the same '#000000' those curves have always used.
+    """
+    p = palette()
+    return p['chart_text'] if is_dark() else p['chart_axis']
 
 
 def apply_common_styling(fig, show_grid=True, show_box=True):
@@ -121,7 +136,7 @@ def apply_common_styling(fig, show_grid=True, show_box=True):
     -----------------
     *Data-plot mode* (``show_box=True``, the default) — for everything
     in the app *except* the Quality Breakdown bar chart. Draws a thin
-    black rectangular box around every axis (a real box, not just a
+    rectangular box around every axis (a real box, not just a
     single line: ``showline=True, mirror=True`` on both axes). For a
     ``make_subplots`` figure this puts a box around *each* subplot
     individually, not the whole figure. Ticks sit outside the plot
@@ -129,8 +144,12 @@ def apply_common_styling(fig, show_grid=True, show_box=True):
 
     *Chart mode* (``show_box=False``) — used by the Quality Breakdown
     horizontal bar chart. Single, lightweight bottom + left lines in
-    a soft gray (#E0E0E0), no mirror, inside ticks, smaller tick font.
-    Visually matches the original (pre-v2.0-styling) chart appearance.
+    the border colour (a soft gray in light mode), no mirror, inside
+    ticks, smaller tick font. Visually matches the original
+    (pre-v2.0-styling) chart appearance.
+
+    Every colour here comes from the active theme's palette; the
+    geometry — sizes, margins, tick lengths — does not change with it.
 
     Subplot titles
     --------------
@@ -156,16 +175,18 @@ def apply_common_styling(fig, show_grid=True, show_box=True):
     fig : go.Figure
         The styled figure (also mutated in place).
     """
+    p = palette()
+
     # Layout: typography, backgrounds, margins, legend, hover.
     fig.update_layout(
         font=dict(
             family='Arial, sans-serif',
             size=FONT_SIZE_BASE,
-            color='#333333',
+            color=p['chart_text'],
         ),
         title_font=dict(size=FONT_SIZE_TITLE),
-        paper_bgcolor='white',
-        plot_bgcolor='white',
+        paper_bgcolor=p['chart_bg'],
+        plot_bgcolor=p['chart_bg'],
         margin=MARGIN_DEFAULT,
         legend=dict(
             orientation='h',
@@ -173,35 +194,42 @@ def apply_common_styling(fig, show_grid=True, show_box=True):
             y=LEGEND_Y_OFFSET,
             xanchor='center',
             x=0.5,
-            bgcolor='rgba(255,255,255,0.9)',
-            bordercolor='#E0E0E0',
+            bgcolor=rgba(p['chart_panel'], 0.9),
+            bordercolor=p['border'],
             borderwidth=1,
             font=dict(size=FONT_SIZE_LEGEND),
         ),
         hoverlabel=dict(
-            bgcolor='white',
-            bordercolor='#2D3E50',
-            font=dict(size=12, color='#333333'),
+            bgcolor=p['chart_panel'],
+            bordercolor=p['structural'],
+            font=dict(size=12, color=p['chart_text']),
         ),
     )
 
     if show_box:
-        # Data-plot mode: black rectangular box, outside ticks, large
-        # tick labels for readability.
+        # Data-plot mode: rectangular box, outside ticks, large tick
+        # labels for readability.
+        #
+        # Note the tick labels take ``chart_text`` and not ``chart_tick``:
+        # in light mode these ticks are #333333, which is the *text*
+        # colour, while ``chart_tick`` (#666666) is what the chart-mode
+        # branch below uses. Keeping that split is what stops the light
+        # theme from shifting; it does mean the data plots' dark ticks are
+        # the brighter of the two dark tick colours.
         axis_style = dict(
             showgrid=show_grid,
             gridwidth=GRID_WIDTH,
-            gridcolor=GRID_COLOR if show_grid else None,
+            gridcolor=p['chart_grid'] if show_grid else None,
             showline=True,
             linewidth=AXIS_BOX_WIDTH,
-            linecolor=AXIS_BOX_COLOR,
+            linecolor=p['chart_axis'],
             mirror=True,
             ticks='outside',
             ticklen=4,
             tickwidth=1,
-            tickcolor=AXIS_BOX_COLOR,
-            tickfont=dict(size=FONT_SIZE_TICK, color='#333333'),
-            title_font=dict(size=FONT_SIZE_AXIS_TITLE, color='#333333'),
+            tickcolor=p['chart_axis'],
+            tickfont=dict(size=FONT_SIZE_TICK, color=p['chart_text']),
+            title_font=dict(size=FONT_SIZE_AXIS_TITLE, color=p['chart_text']),
         )
     else:
         # Chart mode: lightweight axes for the Quality Breakdown bar
@@ -209,14 +237,14 @@ def apply_common_styling(fig, show_grid=True, show_box=True):
         axis_style = dict(
             showgrid=show_grid,
             gridwidth=GRID_WIDTH,
-            gridcolor=GRID_COLOR if show_grid else None,
+            gridcolor=p['chart_grid'] if show_grid else None,
             showline=True,
             linewidth=1,
-            linecolor='#E0E0E0',
+            linecolor=p['border'],
             mirror=False,
             ticks='inside',
-            tickfont=dict(size=16, color='#666666'),
-            title_font=dict(size=FONT_SIZE_AXIS_TITLE, color='#333333'),
+            tickfont=dict(size=16, color=p['chart_tick']),
+            title_font=dict(size=FONT_SIZE_AXIS_TITLE, color=p['chart_text']),
         )
 
     fig.update_xaxes(**axis_style)
@@ -316,7 +344,7 @@ def create_mueller_matrix_plot(
                     y=y_data,
                     mode='lines',
                     name=f'm{i+1}{j+1}',
-                    line=dict(color=TRACE_COLORS[0]),  # Explicit blue for all traces
+                    line=dict(color=trace_colors()[0]),  # Explicit blue for all traces
                     hovertemplate=f'{hover_label}<br>λ=%{{x:.1f}} nm<br>Value=%{{y:.4f}}<extra></extra>',
                     showlegend=False
                 ),
@@ -384,7 +412,7 @@ def create_selected_elements_plot(
     """
     fig = go.Figure()
 
-    colors = TRACE_COLORS
+    colors = trace_colors()
 
     for idx, (i, j) in enumerate(selected_elements):
         # Use subscript format in legend
@@ -443,12 +471,13 @@ def create_eigenvalue_plot(
     fig = go.Figure()
 
     # Quality tier background regions (shaded)
+    tier = quality_colors()
     quality_regions = [
-        (1e-6, 1e-4, QUALITY_COLORS['excellent'], 'Excellent'),
-        (1e-4, 1e-3, QUALITY_COLORS['good'], 'Good'),
-        (1e-3, 1e-2, QUALITY_COLORS['acceptable'], 'Acceptable'),
-        (1e-2, 0.1, QUALITY_COLORS['marginal'], 'Marginal'),
-        (0.1, 10, QUALITY_COLORS['poor'], 'Poor'),
+        (1e-6, 1e-4, tier['excellent'], 'Excellent'),
+        (1e-4, 1e-3, tier['good'], 'Good'),
+        (1e-3, 1e-2, tier['acceptable'], 'Acceptable'),
+        (1e-2, 0.1, tier['marginal'], 'Marginal'),
+        (0.1, 10, tier['poor'], 'Poor'),
     ]
 
     for y0, y1, color, label in quality_regions:
@@ -459,14 +488,15 @@ def create_eigenvalue_plot(
             line_width=0,
         )
 
-    # Main data trace (black curve on top of shaded regions)
+    # Main data trace (drawn on top of the shaded regions: black on
+    # white, bright grey on the dark panel — see ``_ink``)
     fig.add_trace(
         go.Scatter(
             x=wavelengths,
             y=eigenvalue_ratios,
             mode='lines',
             name='Eigenvalue Ratio',
-            line=dict(color='black', width=2),
+            line=dict(color=_ink(), width=2),
             hovertemplate='λ=%{x:.1f} nm<br>Ratio=%{y:.2e}<extra></extra>',
         )
     )
@@ -529,12 +559,13 @@ def create_quality_breakdown_chart(
     # `categoryorder='array'` so empty tiers still get a tick label.
     categories = ['Poor', 'Marginal', 'Acceptable', 'Good', 'Excellent']
     keys = ['poor', 'marginal', 'acceptable', 'good', 'excellent']
+    tier = quality_colors()
     colors = [
-        QUALITY_COLORS['poor'],
-        QUALITY_COLORS['marginal'],
-        QUALITY_COLORS['acceptable'],
-        QUALITY_COLORS['good'],
-        QUALITY_COLORS['excellent'],
+        tier['poor'],
+        tier['marginal'],
+        tier['acceptable'],
+        tier['good'],
+        tier['excellent'],
     ]
 
     counts = [quality_counts.get(k, 0) for k in keys]
@@ -557,32 +588,35 @@ def create_quality_breakdown_chart(
         )
     )
 
-    # Dedicated chart styling — does NOT go through apply_common_styling.
+    # Dedicated chart styling — does NOT go through apply_common_styling,
+    # so it reads the palette itself. The colour roles mirror that
+    # function's chart mode exactly.
+    p = palette()
     fig.update_layout(
         title=dict(text="Quality Breakdown", font=dict(size=FONT_SIZE_TITLE)),
         font=dict(family='Arial, sans-serif', size=FONT_SIZE_BASE,
-                  color='#333333'),
-        paper_bgcolor='white',
-        plot_bgcolor='white',
+                  color=p['chart_text']),
+        paper_bgcolor=p['chart_bg'],
+        plot_bgcolor=p['chart_bg'],
         height=320,
         showlegend=False,
         margin=dict(l=110, r=40, t=70, b=70),
         bargap=0.25,
-        hoverlabel=dict(bgcolor='white', bordercolor='#2D3E50',
-                        font=dict(size=12, color='#333333')),
+        hoverlabel=dict(bgcolor=p['chart_panel'], bordercolor=p['structural'],
+                        font=dict(size=12, color=p['chart_text'])),
     )
 
     fig.update_xaxes(
         title=dict(text="Percentage (%)",
-                   font=dict(size=18, color='#666666')),
+                   font=dict(size=18, color=p['chart_tick'])),
         range=[0, 100],
         showgrid=False,
         showline=True,
         linewidth=1,
-        linecolor='#E0E0E0',
+        linecolor=p['border'],
         mirror=False,
         ticks='inside',
-        tickfont=dict(size=18, color='#666666'),
+        tickfont=dict(size=18, color=p['chart_tick']),
         zeroline=False,
     )
     fig.update_yaxes(
@@ -592,7 +626,7 @@ def create_quality_breakdown_chart(
         showgrid=False,
         showline=False,
         ticks='',
-        tickfont=dict(size=18, color='#333333'),
+        tickfont=dict(size=18, color=p['chart_text']),
         zeroline=False,
     )
 
@@ -807,7 +841,7 @@ def create_m00_plot(
             y=m00,
             mode='lines',
             name=sample_name,
-            line=dict(color=TRACE_COLORS[0], width=2),
+            line=dict(color=trace_colors()[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>M₀₀=%{y:.4f}<extra></extra>',
         )
     )
@@ -850,7 +884,7 @@ def create_m00_comparison_plot(
     """
     fig = go.Figure()
 
-    colors = TRACE_COLORS
+    colors = trace_colors()
 
     for idx, (name, m00) in enumerate(m00_dict.items()):
         fig.add_trace(
@@ -918,7 +952,7 @@ def create_mueller_comparison_plot(
         horizontal_spacing=0.08,
     )
 
-    colors = TRACE_COLORS
+    colors = trace_colors()
 
     sample_names = list(samples_dict.keys())
 
@@ -1036,7 +1070,7 @@ def create_diattenuation_plot(
             y=D,
             mode='lines',
             name=sample_name,
-            line=dict(color=TRACE_COLORS[0], width=2),
+            line=dict(color=trace_colors()[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>D=%{y:.4f}<extra></extra>',
         )
     )
@@ -1078,7 +1112,7 @@ def create_diattenuation_comparison_plot(
     """
     fig = go.Figure()
 
-    colors = TRACE_COLORS
+    colors = trace_colors()
 
     for idx, (name, D) in enumerate(samples_dict.items()):
         fig.add_trace(
@@ -1138,7 +1172,7 @@ def create_di_plot(
             y=DI,
             mode='lines',
             name=sample_name,
-            line=dict(color=TRACE_COLORS[0], width=2),
+            line=dict(color=trace_colors()[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>DI=%{y:.4f}<extra></extra>',
         )
     )
@@ -1180,7 +1214,7 @@ def create_di_comparison_plot(
     """
     fig = go.Figure()
 
-    colors = TRACE_COLORS
+    colors = trace_colors()
 
     for idx, (name, DI) in enumerate(samples_dict.items()):
         fig.add_trace(
@@ -1280,7 +1314,7 @@ def create_retardance_plot(
             y=y_data,
             mode='lines',
             name=sample_name,
-            line=dict(color=TRACE_COLORS[0], width=2),
+            line=dict(color=trace_colors()[0], width=2),
             hovertemplate=f'λ=%{{x:.1f}} nm<br>R=%{{y:.4f}}<extra></extra>',
         )
     )
@@ -1365,7 +1399,7 @@ def create_retardance_comparison_plot(
 
     fig = go.Figure()
 
-    colors = TRACE_COLORS
+    colors = trace_colors()
 
     for idx, (name, result) in enumerate(samples_dict.items()):
         # Handle both LuChipmanResult objects and tuples
@@ -1494,7 +1528,7 @@ def create_fast_axis_plot(
             y=psi_data,
             mode='lines',
             name=sample_name,
-            line=dict(color=TRACE_COLORS[0], width=2),
+            line=dict(color=trace_colors()[0], width=2),
             hovertemplate='λ=%{x:.1f} nm<br>ν=%{y:.2f}<extra></extra>',
         ),
         row=1, col=1
@@ -1507,7 +1541,7 @@ def create_fast_axis_plot(
             y=chi_data,
             mode='lines',
             name=sample_name,
-            line=dict(color=TRACE_COLORS[0], width=2),
+            line=dict(color=trace_colors()[0], width=2),
             showlegend=False,
             hovertemplate='λ=%{x:.1f} nm<br>χ=%{y:.2f}<extra></extra>',
         ),
@@ -1569,7 +1603,7 @@ def create_fast_axis_comparison_plot(
         vertical_spacing=0.12
     )
 
-    colors = TRACE_COLORS
+    colors = trace_colors()
 
     # Unit settings
     if unit == "radians":
@@ -1710,7 +1744,7 @@ def create_ellipsometry_plot(
         fig.add_trace(
             go.Scatter(
                 x=wavelengths, y=ellips_result.psi_deg, name='Ψ',
-                line=dict(color=PRIMARY_COLOR, width=2),
+                line=dict(color=primary_color(), width=2),
                 mode='lines',
             ),
             secondary_y=False,
@@ -1718,7 +1752,7 @@ def create_ellipsometry_plot(
         fig.add_trace(
             go.Scatter(
                 x=wavelengths, y=ellips_result.delta_deg, name='Δ',
-                line=dict(color=TRACE_COLORS[0], width=2),
+                line=dict(color=trace_colors()[0], width=2),
                 mode='lines',
             ),
             secondary_y=True,
@@ -1736,7 +1770,7 @@ def create_ellipsometry_plot(
         fig.add_trace(
             go.Scatter(
                 x=wavelengths, y=y, name=label,
-                line=dict(color=TRACE_COLORS[i % len(TRACE_COLORS)], width=2),
+                line=dict(color=_trace(i), width=2),
                 mode='lines',
             )
         )
@@ -1785,7 +1819,7 @@ def create_ellipsometry_comparison_plot(
     )
 
     for i, (name, ellips) in enumerate(results.items()):
-        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        color = _trace(i)
         traces = _extract_ellips_traces(ellips, parameter)
         for row_idx, (label, y, _unit) in enumerate(traces, start=1):
             fig.add_trace(
@@ -1844,7 +1878,7 @@ def create_eigenvalue_spectrum_plot(
         fig.add_trace(
             go.Scatter(
                 x=wavelengths, y=eigenvalues[i, :], name=labels[i],
-                line=dict(color=TRACE_COLORS[i % len(TRACE_COLORS)], width=2),
+                line=dict(color=_trace(i), width=2),
                 mode='lines',
             )
         )
@@ -1867,7 +1901,7 @@ def create_eigenvalue_spectrum_comparison_plot(
                         'λ<sub>2</sub>', 'λ<sub>3</sub>'),
     )
     for i, (name, res) in enumerate(results.items()):
-        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        color = _trace(i)
         for row in range(4):
             fig.add_trace(
                 go.Scatter(
@@ -1911,7 +1945,7 @@ def create_coherency_matrix_plot(
             go.Scatter(
                 x=wavelengths, y=y,
                 name=f'|H<sub>{i}{j}</sub>|',
-                line=dict(color=TRACE_COLORS[k % len(TRACE_COLORS)], width=2),
+                line=dict(color=_trace(k), width=2),
                 mode='lines',
             )
         )
@@ -1941,7 +1975,7 @@ def create_purity_indices_plot(
         fig.add_trace(
             go.Scatter(
                 x=wavelengths, y=y, name=label,
-                line=dict(color=TRACE_COLORS[i % len(TRACE_COLORS)], width=2),
+                line=dict(color=_trace(i), width=2),
                 mode='lines',
             )
         )
@@ -1980,7 +2014,7 @@ def create_purity_indices_comparison_plot(
         ),
     )
     for i, (name, res) in enumerate(results.items()):
-        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        color = _trace(i)
         for row_idx, attr in enumerate(('P_P', 'P_S', 'P_Delta'), start=1):
             fig.add_trace(
                 go.Scatter(
@@ -2020,15 +2054,16 @@ def _purity_space_boundary_traces():
     ps3 = np.linspace(0.0, sqrt3_3, 200)
     pp3 = np.sqrt((1.0 + 3.0 * ps3**2) / 2.0)
 
+    ink = _ink()
     return [
         go.Scatter(x=ps1, y=pp1, mode='lines',
-                   line=dict(color='black', width=2),
+                   line=dict(color=ink, width=2),
                    name='Ellipse (solid)', showlegend=False, hoverinfo='skip'),
         go.Scatter(x=ps2, y=pp2, mode='lines',
-                   line=dict(color='black', width=2, dash='dash'),
+                   line=dict(color=ink, width=2, dash='dash'),
                    name='Ellipse (dashed)', showlegend=False, hoverinfo='skip'),
         go.Scatter(x=ps3, y=pp3, mode='lines',
-                   line=dict(color='black', width=2),
+                   line=dict(color=ink, width=2),
                    name='Hyperbola', showlegend=False, hoverinfo='skip'),
     ]
 
@@ -2060,19 +2095,20 @@ def _apply_purity_space_axes(fig: go.Figure, title: str) -> go.Figure:
     ``use_container_width=True``. We don't use it; a slightly stretched
     (P_S, P_P) plot is preferable to losing the requested limits.
     """
+    ink = _ink()
     fig.update_layout(title=title)
     fig.update_xaxes(
         title_text='Degree of Spherical Purity P<sub>S</sub>',
         range=list(_PURITY_X_RANGE),
         zeroline=True,
-        zerolinecolor='black',
+        zerolinecolor=ink,
         zerolinewidth=2,
     )
     fig.update_yaxes(
         title_text='Degree of Polarimetric Purity P<sub>P</sub>',
         range=list(_PURITY_Y_RANGE),
         zeroline=True,
-        zerolinecolor='black',
+        zerolinecolor=ink,
         zerolinewidth=2,
     )
     return fig
@@ -2102,10 +2138,12 @@ def create_purity_space_scatter(
                 marker=dict(
                     size=8,
                     color=wavelengths,
-                    colorscale='Plasma',
+                    # Plasma is perceptually uniform and reads correctly on
+                    # both backgrounds, so it is shared by the two themes.
+                    colorscale=HEATMAP_COLORSCALE,
                     showscale=True,
                     colorbar=dict(title='Wavelength (nm)'),
-                    line=dict(width=0.3, color='black'),
+                    line=dict(width=0.3, color=_ink()),
                 ),
                 name=sample_name or 'Sample',
                 showlegend=False,
@@ -2115,8 +2153,8 @@ def create_purity_space_scatter(
         fig.add_trace(
             go.Scatter(
                 x=P_S, y=P_P, mode='markers',
-                marker=dict(size=8, color=PRIMARY_COLOR,
-                            line=dict(width=0.3, color='black')),
+                marker=dict(size=8, color=primary_color(),
+                            line=dict(width=0.3, color=_ink())),
                 name=sample_name or 'Sample',
                 showlegend=False,
             )
@@ -2147,12 +2185,12 @@ def create_purity_space_comparison_scatter(
         fig.add_trace(tr)
 
     for i, (name, res) in enumerate(results.items()):
-        color = TRACE_COLORS[i % len(TRACE_COLORS)]
+        color = _trace(i)
         fig.add_trace(
             go.Scatter(
                 x=res.P_S, y=res.P_P, mode='markers',
                 marker=dict(size=7, color=color,
-                            line=dict(width=0.3, color='black')),
+                            line=dict(width=0.3, color=_ink())),
                 name=name,
             )
         )

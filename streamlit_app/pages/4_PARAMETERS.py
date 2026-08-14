@@ -55,6 +55,7 @@ from utils.session_state import (
     get_reflection_calibration_result,
     get_output_dir,
 )
+from utils.theme import sync_theme
 from utils.styling import inject_custom_css, soft_divider
 
 # ECM imports
@@ -252,6 +253,12 @@ inject_custom_css()
 # ============================================================================
 
 initialize_session_state()
+
+# Notice a theme switch and rerun once, so the Plotly figures are
+# rebuilt with the new palette instead of lagging a frame behind
+# the chrome. Must run after initialize_session_state(), which
+# creates the key this compares against.
+sync_theme()
 
 # Initialize page-specific session state
 if 'decomp_selected_samples' not in st.session_state:
