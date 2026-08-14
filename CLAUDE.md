@@ -4,7 +4,7 @@ This document is the starting point for anyone — human or AI — picking up
 work on MMForge. It explains the architecture, the conventions, and the
 non-obvious pitfalls you will run into.
 
-> **Version target:** MMForge **v2.1.0**, built on **ECM-Calibration v8.0.0**.
+> **Version target:** MMForge **v2.2.0**, built on **ECM-Calibration v8.0.0**.
 > If the version numbers in [`ecm/__init__.py`](ecm/__init__.py) or
 > [`streamlit_app/components/sidebar.py`](streamlit_app/components/sidebar.py)
 > have drifted from those, the doc is stale — update it before doing
@@ -80,7 +80,8 @@ MMForge/
 │   └── utils/
 │       ├── session_state.py     ← SESSION_KEYS + persist loop (see below)
 │       │                           + DEFAULT_OUTPUT_DIR / get_output_dir()
-│       ├── styling.py
+│       ├── theme.py             ← LIGHT/DARK palettes, the colour source of truth
+│       ├── styling.py           ← CSS built from the active palette
 │       └── export.py
 ├── tools/                        # launcher + installer internals
 │   ├── launch_mmforge.py         ← shared: port, checks, starts Streamlit
@@ -88,7 +89,8 @@ MMForge/
 │   ├── create_windows_shortcut.ps1
 │   ├── create_macos_app.sh       ← builds ~/Applications/MMForge.app
 │   ├── build_readme_html.py      ← README.md → README.html (run by hand)
-│   ├── build_icons.py            ← logo → mmforge.png/.ico (run by hand)
+│   ├── build_icons.py            ← logo → mmforge.png/.ico + dark logo
+│   │                                (run by hand)
 │   ├── mmforge.ico               ← Windows shortcut icon   (generated)
 │   └── mmforge.png               ← source for the macOS .icns (generated)
 ├── MMForge.bat                   # Windows: double-click to run
@@ -349,9 +351,11 @@ It exists so someone who was handed the folder — no GitHub, no editor —
 can double-click a file and read formatted instructions. The output is
 self-contained: CSS inlined, logo embedded as a data URI.
 
-The launcher icons are generated too. `tools/mmforge.png` (1024×1024, the
-source for the macOS `.icns`) and `tools/mmforge.ico` (Windows) both come
-from `streamlit_app/assets/MMForge_v1.png` via:
+The launcher icons are generated too, as is the dark-theme logo.
+`tools/mmforge.png` (1024×1024, the source for the macOS `.icns`),
+`tools/mmforge.ico` (Windows) and
+`streamlit_app/assets/MMForge_v1_dark.png` all come from
+`streamlit_app/assets/MMForge_v1.png` via:
 
 ```
 python -m pip install pillow           # only needed for this script
@@ -369,6 +373,111 @@ Navy plate rather than white because most Dock icons are already white.
 
 Changing the icon means re-running the platform installer afterwards, so
 the Desktop shortcut and `~/Applications/MMForge.app` pick it up.
+
+The dark logo is a separate output of the same script because dropping the
+white background is not sufficient on its own — see the Theming section.
+
+---
+
+## Theming (v2.2.0)
+
+MMForge ships a light and a dark theme. The user switches them in the
+toolbar menu (⋮ → Settings → Appearance), which is Streamlit's own control
+— there is no custom toggle, deliberately. `client.toolbarMode` is
+`"viewer"` in `streamlit_app/.streamlit/config.toml` so that menu exists
+while the developer options stay hidden.
+
+### Two palettes, not one
+
+[`streamlit_app/utils/theme.py`](streamlit_app/utils/theme.py) holds every
+colour in `LIGHT` and `DARK` dicts and is the single source of truth. The
+Plotly helpers, the injected CSS and the inline HTML blocks all read from
+it; nothing else should carry a hex literal.
+
+The dark theme uses **two colour families on purpose**:
+
+- **chrome** (`bg`, `panel`, `panel_raised`, `text`, `structural`, …) is a
+  slate drawn from the logo navy, so the app keeps its identity;
+- **charts** (`chart_*`, `traces`, `quality`) sit on a near-black `#121212`
+  with more saturated traces.
+
+So the chart panel is **one shade darker than the app around it**. That is
+intentional — the figure reads as a recessed panel and the data stands out.
+Do not "harmonise" them. The governing rule is **chrome recedes, data stays
+legible**: the app overlays up to 16 sample curves, and desaturating those
+along with the UI would be an accessibility regression rather than a style
+choice.
+
+In light mode elevation is expressed with *darker* colours; in dark mode it
+inverts, and raised surfaces are *lighter* than the background. That is why
+`structural` is not the same hex in both palettes.
+
+### How the active theme is detected
+
+`current_theme_name()` resolves in order: the `MMFORGE_FORCE_THEME`
+environment variable (`light` / `dark`), then `st.context.theme.type`, then
+`"light"`. The environment override exists because **the dark path is
+otherwise untestable headlessly**: under `AppTest` on Streamlit 1.61.1,
+`st.context.theme` does not raise — it returns `{'type': None}` — so the
+fallback is reached through the unrecognised-value branch. It is a testing
+and pinning hook, not a second toggle, and it gets no UI.
+
+`sync_theme()` stores the theme seen on the previous run in the
+`active_theme` session key and reruns once when it changes. Note what it
+cannot do: flipping the theme **does not re-run the script** — Streamlit
+only restyles the page in the browser — so figures already on screen keep
+their palette until the next rerun from any other cause. This lag is
+accepted; a polling fragment on pages that run calibrations is not worth
+it, and a parallel custom toggle that could disagree with Streamlit's own
+would be worse.
+
+### Where the plan was overruled
+
+The implementation plan's §2.3 assigned the *lightened* slate `#899DB3` to
+expander headers and sidebar highlights. That was tried and rejected on
+review: every expander header became a bright bar and it added a fourth
+blue to a palette that already had three. Expander headers, secondary
+buttons and table headers therefore take the elevated surface `#2A3542`
+instead, which preserves what §2.3 is actually about — raised things are
+lighter than the page — without a new hue. Secondary buttons carry a slate
+*border* so they still read as controls. `structural` itself is still the
+lightened slate and is used for hover washes, focus rings and the sidebar
+accent.
+
+### The light theme is a regression baseline
+
+Every light value must survive byte-identical. Two checks make that
+provable, and both are worth re-running after any colour work:
+
+- rebuild figures with the previous `plots_plotly.py` (from git) and diff
+  the Plotly JSON, normalising notation (`"white"` vs `"#FFFFFF"`);
+- generate the stylesheet under the light palette and diff it against the
+  previous `MMFORGE_CSS`.
+
+Hover states in dark mode paint a translucent wash *over* the surface via
+`background-image`, not `background-color`. An rgba background composites
+against the page rather than the element, which on a raised dark surface
+makes hover come out darker than rest — the palette has no solid surface
+above `panel_raised` to hover into.
+
+### The logo
+
+`streamlit_app/assets/MMForge_v1.png` has an opaque white background, and
+16.3% of the artwork is the slate `#2D3E50` — the anvil and the wordmark —
+which sits at contrast 1.71 on `#161C24`. Making the background transparent
+alone would leave the magenta squares floating with no anvil, so
+`tools/build_icons.py` also repaints that ink for the dark variant. Slate
+and magenta separate on one test that survives anti-aliasing: the slate has
+more blue than red, the magenta far more red than blue.
+
+### Exports
+
+Figures leave the app through the camera button in Plotly's own toolbar,
+which runs in the browser and saves what is on screen — so a dark app
+exports a dark PNG. It cannot be redirected from Python: `config` reaches
+Plotly.js, but `toImageButtonOptions` covers size, scale, format and
+filename, not colours. Switch to the light theme before exporting for
+publication. CSV and `.npz` exports are numbers and are unaffected.
 
 ---
 
@@ -495,6 +604,21 @@ print('OK')
    `st.dialog` needs 1.37; `requirements.txt` allowed 1.30 for months.
    The pinned range there is the contract — update it in the same commit
    as the API use.
+10. **Streamlit does not always hot-reload `utils/`.** Editing
+    `styling.py` and refreshing the browser can keep serving the *old*
+    module — it is imported once per process and the watcher misses it.
+    A page script's own edits do reload, which makes this doubly
+    confusing: half your change appears. Restart the server before
+    concluding that a colour change did not work.
+11. **The theme choice is stored per page path.** Streamlit keeps it in
+    `localStorage` under `stActiveTheme-/CALIBRATION-v2` and friends, so
+    switching on one page does not necessarily carry to another. Worth
+    knowing when a page looks like it ignored the switch.
+12. **`theme.chartCategoricalColors` has no per-theme variant** in
+    Streamlit 1.61.1. Only the top-level key exists;
+    `theme.dark.chartCategoricalColors` is logged as unknown and ignored.
+    It is deliberately unset — MMForge colours every trace itself from
+    `theme.py`, and setting it globally would move the light theme.
 
 ---
 
@@ -511,4 +635,4 @@ print('OK')
 
 ---
 
-*Last updated: 2026-08-13 (MMForge v2.1.0).*
+*Last updated: 2026-08-14 (MMForge v2.2.0).*

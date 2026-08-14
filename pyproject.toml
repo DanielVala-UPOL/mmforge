@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 # This describes the ECM algorithm library in ecm/, not the MMForge GUI.
-# The two are versioned independently: MMForge 2.1.0 is built on ECM 8.0.0.
+# The two are versioned independently: MMForge 2.2.0 is built on ECM 8.0.0.
 # Keep this number in step with ecm/__init__.py __version__.
 name = "ecm-polarimetry"
 version = "8.0.0"

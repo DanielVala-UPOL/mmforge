@@ -16,7 +16,7 @@ analyses them with four decompositions — Lu-Chipman polar, differential
 > Department of Optics, Palacký University Olomouc, and may not work correctly
 > on other instruments without modification.
 
-**Version 2.1.0** · built on ECM-Calibration 8.0.0 · Windows and macOS ·
+**Version 2.2.0** · built on ECM-Calibration 8.0.0 · Windows and macOS ·
 Python 3.10 or newer
 
 ---

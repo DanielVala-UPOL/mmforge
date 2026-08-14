@@ -58,7 +58,7 @@ render_sidebar()
 # ============================================================================
 
 def main():
-    st.title("About MMForge 2.1")
+    st.title("About MMForge 2.2")
 
     st.space(size="small")
 
@@ -68,7 +68,7 @@ def main():
     with ellipsometric parameter extraction (Ψ, Δ, pseudo-dielectric function, pseudo n/k) and four Mueller-matrix decompositions
     (Lu-Chipman, differential, Cloude spectral, purity space).
 
-    This is MMForge 2.1.0, released in August 2026, on top of ECM-Calibration v8.0.0. Due to specific requirements of the ECM algorithm,
+    This is MMForge 2.2.0, released in August 2026, on top of ECM-Calibration v8.0.0. Due to specific requirements of the ECM algorithm,
     correct operation of the application requires a particular instrument design. This version is intended for exclusive use
     with the custom-built Mueller matrix spectroscopic ellipsometer at the Department of Optics, Palacký University Olomouc, and may
     not be compatible with other instruments without modification. Future versions will aim to support a wider range of instrument configurations.
@@ -99,7 +99,31 @@ def main():
 
     with st.expander("Changelog", expanded=False):
         st.markdown("""
-                
+
+        ## v2.2.0 (August 2026)
+
+        **New:**
+        - **Dark theme**, covering both the application and the charts. Switch it
+          in the toolbar menu at the top right (⋮ → Settings → Appearance), which
+          also offers "System" to follow your operating system. The light theme is
+          unchanged.
+        - The chart area in dark mode is deliberately a shade darker than the app
+          around it, so the figure reads as a recessed panel and the curves stand
+          out.
+
+        **Fixed:**
+        - Two of the 16 colours used to overlay multiple samples were unusable on a
+          dark background: one was **pure black** and another **pure blue**. The
+          dark theme replaces both, and every colour in its sequence is comfortably
+          legible.
+        - Table rows now visibly highlight under the pointer in dark mode.
+
+        **Worth knowing:**
+        - Saving a chart with the camera button in its toolbar stores it in
+          whichever theme is on screen. For a figure going into a paper, switch to
+          the light theme first.
+        - Charts pick up a theme switch on your next click rather than instantly.
+
         ## v2.1.0 (August 2026)
 
         **New:**
