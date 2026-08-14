@@ -603,7 +603,12 @@ print('OK')
 9. **Check the Streamlit floor before using a new `st.*` API.**
    `st.dialog` needs 1.37; `requirements.txt` allowed 1.30 for months.
    The pinned range there is the contract — update it in the same commit
-   as the API use.
+   as the API use. This has now bitten twice: `st.space` needs 1.51 and
+   went in while the floor still said 1.37, so a fresh install at the
+   documented minimum would have died with `AttributeError` on the Home
+   page. The floor is `>=1.51` as of v2.2.0. To check a new call, download
+   the wheel of the oldest allowed version and read the signature — do not
+   trust the current environment, which is always the newest one.
 10. **Streamlit does not always hot-reload `utils/`.** Editing
     `styling.py` and refreshing the browser can keep serving the *old*
     module — it is imported once per process and the watcher misses it.

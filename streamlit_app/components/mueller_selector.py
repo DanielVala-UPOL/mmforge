@@ -52,7 +52,7 @@ def mueller_element_selector(
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("Clear All", key=f"{key}_clear", use_container_width=True):
+        if st.button("Clear All", key=f"{key}_clear", width="stretch"):
             st.session_state[f"{key}_selection"] = []
             # Update checkbox widget keys before rerun
             for i in range(4):
@@ -61,7 +61,7 @@ def mueller_element_selector(
             st.rerun()
 
     with col2:
-        if st.button("Select All", key=f"{key}_all", use_container_width=True):
+        if st.button("Select All", key=f"{key}_all", width="stretch"):
             st.session_state[f"{key}_selection"] = [(i, j) for i in range(4) for j in range(4)]
             # Update checkbox widget keys before rerun
             for i in range(4):

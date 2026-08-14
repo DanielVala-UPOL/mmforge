@@ -157,14 +157,14 @@ def render_sidebar():
         soft_divider()
         st.markdown("### Session")
 
-        if st.button("Reset Session", use_container_width=True, type="secondary"):
+        if st.button("Reset Session", width="stretch", type="secondary"):
             st.session_state['_confirm_reset'] = True
 
         if st.session_state.get('_confirm_reset', False):
             st.warning("Clear all and start over?")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Confirm", type="primary", use_container_width=True, key="sidebar_confirm_reset"):
+                if st.button("Confirm", type="primary", width="stretch", key="sidebar_confirm_reset"):
                     # Only clear keys we explicitly manage. Widget-bound
                     # keys (buttons, internal checkbox keys, etc.) are left
                     # alone — deleting them mid-flow triggers Streamlit's
@@ -177,7 +177,7 @@ def render_sidebar():
                     st.session_state['_confirm_reset'] = False
                     st.rerun()
             with col2:
-                if st.button("Cancel", use_container_width=True, key="sidebar_cancel_reset"):
+                if st.button("Cancel", width="stretch", key="sidebar_cancel_reset"):
                     st.session_state['_confirm_reset'] = False
                     st.rerun()
 

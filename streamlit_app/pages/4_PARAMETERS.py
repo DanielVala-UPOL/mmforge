@@ -150,12 +150,12 @@ def _render_matrix_roller(
         st.markdown("**Select samples to compare:**")
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("Select All", key=f"{state_prefix}_cmp_all", use_container_width=True):
+            if st.button("Select All", key=f"{state_prefix}_cmp_all", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"{state_prefix}_cmp_cb_{name}"] = True
                 st.rerun()
         with c2:
-            if st.button("Clear All", key=f"{state_prefix}_cmp_clear", use_container_width=True):
+            if st.button("Clear All", key=f"{state_prefix}_cmp_clear", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"{state_prefix}_cmp_cb_{name}"] = False
                 st.rerun()
@@ -198,7 +198,7 @@ def _render_matrix_roller(
                         wavelengths,
                         title=f"{label} Comparison",
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 elif len(selected_for_compare) == 1:
                     st.info("Select at least 2 samples to compare")
                 else:
@@ -213,7 +213,7 @@ def _render_matrix_roller(
                         title=f"{label} — {selected_sample}",
                         m00=None,
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 else:
                     # Selected Elements view — local selector per tab so
                     # users can compare different elements per matrix.
@@ -229,7 +229,7 @@ def _render_matrix_roller(
                             selected_elements,
                             title=f"{label} elements — {selected_sample}",
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                     else:
                         st.info("Select elements from the grid above to display")
 
@@ -340,13 +340,13 @@ def display_sample_checkboxes():
     # Select All / Clear All buttons FIRST
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Select All", key="decomp_select_all", use_container_width=True):
+        if st.button("Select All", key="decomp_select_all", width="stretch"):
             st.session_state['decomp_selected_samples'] = list(sample_names)
             for name in sample_names:
                 st.session_state[f"decomp_cb_{name}"] = True
             st.rerun()
     with col2:
-        if st.button("Clear All", key="decomp_clear_all", use_container_width=True):
+        if st.button("Clear All", key="decomp_clear_all", width="stretch"):
             st.session_state['decomp_selected_samples'] = []
             for name in sample_names:
                 st.session_state[f"decomp_cb_{name}"] = False
@@ -410,12 +410,12 @@ def display_decomposed_matrices():
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Select All", key="decomp_matrix_compare_select_all", use_container_width=True):
+            if st.button("Select All", key="decomp_matrix_compare_select_all", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"decomp_matrix_compare_cb_{name}"] = True
                 st.rerun()
         with col2:
-            if st.button("Clear All", key="decomp_matrix_compare_clear_all", use_container_width=True):
+            if st.button("Clear All", key="decomp_matrix_compare_clear_all", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"decomp_matrix_compare_cb_{name}"] = False
                 st.rerun()
@@ -469,7 +469,7 @@ def display_decomposed_matrices():
                         wavelengths,
                         title=f"{matrix_name} Comparison"
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                 elif len(selected_for_compare) == 1:
                     st.info("Select at least 2 samples to compare")
@@ -488,7 +488,7 @@ def display_decomposed_matrices():
                         title=f"{matrix_name} - {selected_sample}",
                         m00=None
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                 else:
                     # Selected elements view
@@ -509,7 +509,7 @@ def display_decomposed_matrices():
                             selected_elements,
                             title=f"{matrix_name} Selected Elements - {selected_sample}"
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                     else:
                         st.info("Select elements from the grid above to display")
 
@@ -539,12 +539,12 @@ def display_parameter_plots():
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Select All", key="param_select_all", use_container_width=True):
+            if st.button("Select All", key="param_select_all", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"param_cb_{name}"] = True
                 st.rerun()
         with col2:
-            if st.button("Clear All", key="param_clear_all", use_container_width=True):
+            if st.button("Clear All", key="param_clear_all", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"param_cb_{name}"] = False
                 st.rerun()
@@ -565,12 +565,12 @@ def display_parameter_plots():
         if show_comparison and selected:
             samples_dict = {name: lc_results[name].D for name in selected}
             fig = create_diattenuation_comparison_plot(samples_dict, wavelengths)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         elif not show_comparison:
             name = sample_names[0]
             fig = create_diattenuation_plot(lc_results[name].D, wavelengths, sample_name=name)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         else:
             st.info("Select at least one sample above to display")
@@ -579,12 +579,12 @@ def display_parameter_plots():
         if show_comparison and selected:
             samples_dict = {name: lc_results[name].DI for name in selected}
             fig = create_di_comparison_plot(samples_dict, wavelengths)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         elif not show_comparison:
             name = sample_names[0]
             fig = create_di_plot(lc_results[name].DI, wavelengths, sample_name=name)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         else:
             st.info("Select at least one sample above to display")
@@ -601,7 +601,7 @@ def display_parameter_plots():
         if show_comparison and selected:
             samples_dict = {name: lc_results[name] for name in selected}
             fig = create_retardance_comparison_plot(samples_dict, wavelengths, unit=unit)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         elif not show_comparison:
             name = sample_names[0]
@@ -613,7 +613,7 @@ def display_parameter_plots():
                 unit=unit,
                 sample_name=name
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         else:
             st.info("Select at least one sample above to display")
@@ -630,7 +630,7 @@ def display_parameter_plots():
         if show_comparison and selected:
             samples_dict = {name: lc_results[name] for name in selected}
             fig = create_fast_axis_comparison_plot(samples_dict, wavelengths, unit=axis_unit)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         elif not show_comparison:
             name = sample_names[0]
@@ -639,7 +639,7 @@ def display_parameter_plots():
                 result.psi_deg, result.chi_deg, wavelengths,
                 unit=axis_unit, sample_name=name
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         else:
             st.info("Select at least one sample above to display")
@@ -835,7 +835,7 @@ def display_summary_table():
         rows.append(row)
 
     df = pd.DataFrame(rows).set_index('Parameter')
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width="stretch")
 
 
 # ============================================================================
@@ -864,13 +864,13 @@ def _generic_sample_selection(tab_key: str) -> list:
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Select All", key=f"{tab_key}_select_all", use_container_width=True):
+        if st.button("Select All", key=f"{tab_key}_select_all", width="stretch"):
             st.session_state[sel_key] = list(sample_names)
             for name in sample_names:
                 st.session_state[f"{tab_key}_cb_{name}"] = True
             st.rerun()
     with c2:
-        if st.button("Clear All", key=f"{tab_key}_clear_all", use_container_width=True):
+        if st.button("Clear All", key=f"{tab_key}_clear_all", width="stretch"):
             st.session_state[sel_key] = []
             for name in sample_names:
                 st.session_state[f"{tab_key}_cb_{name}"] = False
@@ -899,7 +899,7 @@ def _run_button_block(tab_key: str, selected: list) -> bool:
         clicked = st.button(
             "Run Decomposition",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=disabled,
             help="Select samples first" if disabled else f"Decompose {len(selected)} sample(s)",
             key=f"{tab_key}_run_btn",
@@ -1025,10 +1025,10 @@ def _render_differential_tab(processed_samples: dict):
     st.subheader("Export")
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Save Differential (.npz)", use_container_width=True, key='diff_save'):
+        if st.button("Save Differential (.npz)", width="stretch", key='diff_save'):
             _save_differential(results, wavelengths)
     with c2:
-        if st.button("Export Differential (.csv)", use_container_width=True, key='diff_csv'):
+        if st.button("Export Differential (.csv)", width="stretch", key='diff_csv'):
             _export_differential_csv(results, wavelengths)
 
 
@@ -1112,7 +1112,7 @@ def _render_cloude_tab(processed_samples: dict):
                     wavelengths, results[sel].eigenvalues,
                     title=f"Eigenvalues — {sel}",
                 )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         with param_tabs[1]:
             # |H_ij| is intrinsically per-sample (it's a complex 4×4
@@ -1126,17 +1126,17 @@ def _render_cloude_tab(processed_samples: dict):
                 wavelengths, results[sel].H,
                 title=f"Coherency Matrix |H_ij| — {sel}",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     # Export
     soft_divider()
     st.subheader("Export")
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Save Cloude (.npz)", use_container_width=True, key='cloude_save'):
+        if st.button("Save Cloude (.npz)", width="stretch", key='cloude_save'):
             _save_cloude(results, wavelengths)
     with c2:
-        if st.button("Export Cloude (.csv)", use_container_width=True, key='cloude_csv'):
+        if st.button("Export Cloude (.csv)", width="stretch", key='cloude_csv'):
             _export_cloude_csv(results, wavelengths)
 
 
@@ -1197,7 +1197,7 @@ def _render_purity_tab(processed_samples: dict):
             )
         else:
             fig = create_purity_indices_comparison_plot(wavelengths, results)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Purity space scatter (P_S vs P_P) with boundary curves
     with st.expander("Purity Space (P_S vs P_P)", expanded=True):
@@ -1221,17 +1221,17 @@ def _render_purity_tab(processed_samples: dict):
             )
         else:
             fig = create_purity_space_comparison_scatter(results, wavelengths=wavelengths)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Export
     soft_divider()
     st.subheader("Export")
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Save Purity (.npz)", use_container_width=True, key='purity_save'):
+        if st.button("Save Purity (.npz)", width="stretch", key='purity_save'):
             _save_purity(results, wavelengths)
     with c2:
-        if st.button("Export Purity (.csv)", use_container_width=True, key='purity_csv'):
+        if st.button("Export Purity (.csv)", width="stretch", key='purity_csv'):
             _export_purity_csv(results, wavelengths)
 
 
@@ -1421,7 +1421,7 @@ def _render_lu_chipman_tab():
         if st.button(
             "Run Decomposition",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=run_disabled,
             help="Select samples first" if run_disabled else f"Decompose {len(selected)} sample(s)",
             key="lc_run_btn",
@@ -1466,7 +1466,7 @@ def _render_lu_chipman_tab():
     with col1:
         if st.button(
             "Save Decomposition (.npz)",
-            use_container_width=True,
+            width="stretch",
             disabled=export_disabled,
             key="lc_save_btn",
         ):
@@ -1474,7 +1474,7 @@ def _render_lu_chipman_tab():
     with col2:
         if st.button(
             "Export Data (.csv)",
-            use_container_width=True,
+            width="stretch",
             disabled=export_disabled,
             key="lc_csv_btn",
         ):

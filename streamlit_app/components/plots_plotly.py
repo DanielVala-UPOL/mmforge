@@ -2091,8 +2091,8 @@ def _apply_purity_space_axes(fig: go.Figure, title: str) -> go.Figure:
     -----
     ``scaleanchor='x'`` (forced equal pixel scale) silently widens the
     displayed x-range past the configured ``range=`` whenever the plot
-    container is wider than tall — which is the Streamlit default with
-    ``use_container_width=True``. We don't use it; a slightly stretched
+    container is wider than tall — which is how the GUI draws every figure
+    (``width="stretch"``). We don't use it; a slightly stretched
     (P_S, P_P) plot is preferable to losing the requested limits.
     """
     ink = _ink()

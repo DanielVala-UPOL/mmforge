@@ -560,7 +560,7 @@ def display_quality_summary(diagnostics, result, is_reflection: bool = False):
 
     # Bar chart visualization
     fig = create_quality_breakdown_chart(quality, n_total)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Eigenvalue Ratio plot - now inside Quality Summary
     fig = create_eigenvalue_plot(
@@ -568,7 +568,7 @@ def display_quality_summary(diagnostics, result, is_reflection: bool = False):
         result.wavelengths,
         title="Eigenvalue Ratio (Calibration Quality)"
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _display_reflection_physics(diagnostics) -> None:
@@ -753,7 +753,7 @@ def main():
 
         if st.button(
             discover_button_label,
-            use_container_width=False,
+            width="content",
             disabled=discover_disabled,
             help=missing_dir_hint if discover_disabled else None
         ):
@@ -779,7 +779,7 @@ def main():
         if st.button(
             "Run Calibration",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=run_disabled,
             help="Discover calibration files first" if run_disabled else None
         ):
@@ -809,13 +809,13 @@ def main():
         st.write("Do you want to proceed?")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Proceed", use_container_width=True, type="primary"):
+            if st.button("Proceed", width="stretch", type="primary"):
                 full_session_reset()
                 st.session_state['_show_recal_dialog'] = False
                 st.session_state['_run_calibration'] = True
                 st.rerun()
         with col2:
-            if st.button("Cancel", use_container_width=True):
+            if st.button("Cancel", width="stretch"):
                 st.session_state['_show_recal_dialog'] = False
                 st.rerun()
 
@@ -858,7 +858,7 @@ def main():
             save_help = None
         if st.button(
             "Save Calibration",
-            use_container_width=True,
+            width="stretch",
             disabled=save_disabled,
             help=save_help
         ):
@@ -879,7 +879,7 @@ def main():
         if tutorial_mode:
             st.caption("Loading is disabled in Tutorial mode.")
         elif cal_file_path:
-            if st.button("Load Selected", use_container_width=True):
+            if st.button("Load Selected", width="stretch"):
                 load_calibration_from_file(cal_file_path)
 
 

@@ -17,12 +17,20 @@ matplotlib>=3.7,<4          # backend plots (ecm/visualization)
 plotly>=5.18,<7             # all GUI figures (streamlit_app/components/plots_plotly.py)
 
 # --- GUI framework -------------------------------------------------------
-# Lower bound 1.37: the Calibration page uses st.dialog, added in 1.37.
-# Upper bound 1.62: the GUI still passes use_container_width=..., which
-#   Streamlit deprecated in favour of width=... and will remove in a future
-#   release. Verified working on 1.61.1. Lift this cap only together with
-#   the rename (tracked for a later MMForge release).
-streamlit>=1.37,<1.62
+# Lower bound 1.51. Three separate things in the GUI need it, all measured
+# against the released wheels rather than guessed:
+#   - st.plotly_chart(width=...)  arrived in 1.51 (1.50 has no width at all;
+#     st.button got it in 1.48 and st.dataframe/st.image in 1.49, so the
+#     chart call is what sets the floor);
+#   - st.space()                  arrived in 1.51. Note this was already
+#     true before the width rename, so the old >=1.37 bound was wrong: the
+#     Home and About pages would have raised AttributeError on 1.37;
+#   - [theme.dark] config sections arrived in 1.51, so anything older gets
+#     the light theme and a pile of unknown-option warnings.
+# Upper bound <2: the deprecated use_container_width is gone from the code
+#   as of v2.2.0, so nothing here is scheduled for removal. Verified on
+#   1.61.1, which is the newest 1.x at the time of writing.
+streamlit>=1.51,<2
 
 # --- Data handling -------------------------------------------------------
 pandas>=2.0,<3

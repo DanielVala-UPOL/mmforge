@@ -336,13 +336,13 @@ def display_sample_checkboxes():
     # Select All / Deselect All buttons FIRST (before checkboxes are instantiated)
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Select All", use_container_width=True):
+        if st.button("Select All", width="stretch"):
             st.session_state[state['selected_key']] = list(samples.names)
             for name in samples.names:
                 st.session_state[f"sample_cb_{name}"] = True
             st.rerun()
     with col2:
-        if st.button("Deselect All", use_container_width=True):
+        if st.button("Deselect All", width="stretch"):
             st.session_state[state['selected_key']] = []
             for name in samples.names:
                 st.session_state[f"sample_cb_{name}"] = False
@@ -405,12 +405,12 @@ def display_results():
         # Sample selection checkboxes for comparison
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Select All", key="compare_select_all", use_container_width=True):
+            if st.button("Select All", key="compare_select_all", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"compare_cb_{name}"] = True
                 st.rerun()
         with col2:
-            if st.button("Clear All", key="compare_clear_all", use_container_width=True):
+            if st.button("Clear All", key="compare_clear_all", width="stretch"):
                 for name in sample_names:
                     st.session_state[f"compare_cb_{name}"] = False
                 st.rerun()
@@ -435,7 +435,7 @@ def display_results():
                 wavelengths,
                 title="Mueller Matrix Comparison"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Ellipsometric comparison plots for reflection mode
             if state['is_reflection']:
@@ -475,7 +475,7 @@ def display_results():
                 title=f"Mueller Matrix - {selected_sample}",
                 m00=result.m00
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         else:
             # Selected elements view
@@ -497,7 +497,7 @@ def display_results():
                     selected_elements,
                     title=f"Selected Elements - {selected_sample}"
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
             else:
                 st.info("Select elements from the grid above to display")
 
@@ -516,16 +516,16 @@ def _render_ellipsometry_single(wavelengths, ellips, sample_name):
         ])
         with tab_pd:
             fig = create_ellipsometry_plot(wavelengths, ellips, parameter='psi_delta')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         with tab_ncs:
             fig = create_ellipsometry_plot(wavelengths, ellips, parameter='ncs')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         with tab_eps:
             fig = create_ellipsometry_plot(wavelengths, ellips, parameter='pseudo_epsilon')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         with tab_nk:
             fig = create_ellipsometry_plot(wavelengths, ellips, parameter='pseudo_nk')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 
 def _render_ellipsometry_comparison(wavelengths, ellips_dict):
@@ -536,16 +536,16 @@ def _render_ellipsometry_comparison(wavelengths, ellips_dict):
         ])
         with tab_pd:
             fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='psi_delta')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         with tab_ncs:
             fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='ncs')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         with tab_eps:
             fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='pseudo_epsilon')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         with tab_nk:
             fig = create_ellipsometry_comparison_plot(wavelengths, ellips_dict, parameter='pseudo_nk')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 
 def save_results():
@@ -716,7 +716,7 @@ def main():
 
         if st.button(
             "Discover Samples",
-            use_container_width=False,
+            width="content",
             disabled=discover_disabled,
             help="Set data directory in Configuration first" if discover_disabled else None
         ):
@@ -743,7 +743,7 @@ def main():
         if st.button(
             "Process Selected",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=process_disabled,
             help="Select samples first" if process_disabled else f"Process {len(selected)} sample(s)"
         ):
@@ -801,7 +801,7 @@ def main():
     with col1:
         if st.button(
             "Save Results (.npz)",
-            use_container_width=True,
+            width="stretch",
             disabled=export_disabled,
             help="Saving is disabled in Tutorial mode" if tutorial_mode else None
         ):
@@ -810,7 +810,7 @@ def main():
     with col2:
         if st.button(
             "Export Data (.csv)",
-            use_container_width=True,
+            width="stretch",
             disabled=export_disabled,
             help="Exporting is disabled in Tutorial mode" if tutorial_mode else None
         ):

@@ -83,7 +83,7 @@ def main():
     col1, col2 = st.columns([1, 3])
     with col1:
         if logo_path.exists():
-            st.image(str(logo_path), use_container_width=True)
+            st.image(str(logo_path), width="stretch")
     with col2:
         st.markdown("## Your Mueller Matrix Workbench")
 

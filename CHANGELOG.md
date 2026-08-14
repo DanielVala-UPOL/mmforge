@@ -26,7 +26,23 @@ median eigenvalue ratio is unmoved. This release adds a dark theme.
   invisible on a dark page, so the variant repaints that ink and leaves the
   magenta squares alone.
 
+### Changed
+- **Dropped the deprecated `use_container_width` argument** in favour of
+  `width=`, across all 72 call sites (`width="stretch"` where it was `True`,
+  `width="content"` where it was `False`). Streamlit had scheduled the old
+  argument for removal, so MMForge was pinned below 1.62 to keep it working
+  — a cap that would eventually have frozen the application on an ageing
+  Streamlit. The pin is now `>=1.51,<2`.
+- **Streamlit's lower bound rises from 1.37 to 1.51.** Three things need it,
+  each checked against the released wheels rather than assumed:
+  `st.plotly_chart(width=...)` and `st.space()` both arrived in 1.51, as did
+  the `[theme.dark]` config sections this release depends on.
+
 ### Fixed
+- **The documented minimum Streamlit version was already wrong.** `st.space`
+  is used on the Home and About pages and does not exist before 1.51, so a
+  fresh install at the advertised `>=1.37` would have failed with an
+  `AttributeError` on the first page. Raising the floor fixes that too.
 - **Two trace colours were unusable on any dark background.** The 16-colour
   overlay sequence ended in **pure black** (contrast 1.12 on the dark chart
   panel — an invisible curve) and included **pure blue** at position 13
