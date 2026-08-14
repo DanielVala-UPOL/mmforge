@@ -73,6 +73,13 @@ SESSION_KEYS = {
     # Tutorial mode flags
     'tutorial_mode': False,            # True when using bundled tutorial data
     'saving_disabled': False,          # True in tutorial mode (no persistence)
+    # Theme seen on the previous script run ('light' / 'dark' / None on the
+    # first run). Owned by utils/theme.py's sync_theme(), which uses it to
+    # notice that the user flipped the theme and rerun once so the Plotly
+    # figures are rebuilt with the new palette. Not widget-bound; it lives
+    # here so initialize_session_state() creates it and the re-bind loop
+    # keeps it alive across page navigation.
+    'active_theme': None,
     # ---- Widget-bound keys (pre-initialized so widgets can use `key=` without `value=`/`index=`) ----
     'wavelength_range': (400, 1000),   # Wavelength slider on Configuration page
     # ---- Reflection-mode state ----
