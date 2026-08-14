@@ -5,14 +5,77 @@
 # the app was launched from.
 
 [client]
-toolbarMode = "minimal"
+# "viewer" keeps the toolbar's viewer options - crucially Settings ->
+# Appearance, which is how the user switches between the light and the dark
+# theme defined below - while still hiding the developer options (Rerun,
+# Clear cache, Deploy). "minimal", the previous setting, hid the theme
+# toggle along with them.
+toolbarMode = "viewer"
 
 [browser]
 # No usage statistics are sent. MMForge is used on instrument computers in
 # a university lab; outbound telemetry is neither needed nor wanted.
 gatherUsageStats = false
 
+# ============================================================================
+# THEMES
+# ============================================================================
+# MMForge ships two themes. The colour values here are the *chrome* half of
+# the palettes in streamlit_app/utils/theme.py - that module stays the single
+# source of truth, and the Plotly figures and injected CSS read it directly.
+# Keep the two in step: a value changed here must be changed there too.
+#
+# Options set in [theme] apply to both themes; [theme.light] and [theme.dark]
+# override per theme, and [theme.dark.sidebar] overrides again for the
+# sidebar only.
+#
+# Deliberately absent: chartCategoricalColors. Streamlit 1.61.1 only exposes
+# it globally - there is no theme.light/theme.dark variant, and writing one
+# gets it logged as an unknown option and ignored - so it cannot carry a
+# per-theme trace palette. It would only affect figures that leave their
+# colours to Streamlit, and MMForge sets every trace colour itself from
+# utils/theme.py. Setting it globally would change the light theme for no
+# gain, so it stays out.
+
 [theme]
-# Lock to light theme with MMForge primary color
 base = "light"
+
+[theme.light]
+# The light theme is a regression baseline, not a design surface. These are
+# the values MMForge has always shipped - the entire light appearance must
+# survive this release unchanged. Everything not listed stays on Streamlit's
+# own light defaults, exactly as before, so nothing new is asserted here.
 primaryColor = "#FF1F5B"
+
+[theme.dark]
+# Palette A ("Slate"): the background is drawn from the navy in the MMForge
+# logo so the app keeps its identity when the lights go out. Note that the
+# Plotly figures deliberately sit on a *darker* panel than this (#121212);
+# see the docstring in utils/theme.py - the figure is meant to read as
+# recessed, and that is not something to harmonise away.
+backgroundColor = "#161C24"
+secondaryBackgroundColor = "#1F2833"
+textColor = "#DDE3EA"
+borderColor = "#2C3845"
+primaryColor = "#E87392"
+
+# Elevated surfaces are *lighter* than the background in dark mode - the
+# inverse of how light mode expresses elevation with shadow.
+dataframeHeaderBackgroundColor = "#2A3542"
+dataframeBorderColor = "#2C3845"
+
+# Streamlit's semantic colour triples, which drive st.success / st.warning /
+# st.info / st.error, the coloured markdown text and the badges. Mapped onto
+# the four status colours of palette A.
+greenColor = "#73D3A7"    # success
+yellowColor = "#DEC573"   # warning
+blueColor = "#69B9D3"     # info
+redColor = "#DE7377"      # error
+
+[theme.dark.sidebar]
+# The sidebar is a raised surface: one step lighter than the page behind it,
+# with its own controls raised one step further again.
+backgroundColor = "#1F2833"
+secondaryBackgroundColor = "#2A3542"
+textColor = "#DDE3EA"
+borderColor = "#2C3845"
