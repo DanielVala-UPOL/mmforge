@@ -6,6 +6,12 @@ Provides functions for:
 - Exporting Mueller matrix data to CSV
 - Exporting decomposition results to CSV
 
+Data exports and the theme
+--------------------------
+The CSV and .npz exports carry numbers, so the active theme cannot reach
+them. Only figure export is affected, and that is worth reading before
+changing anything here - see ``export_figure_png``.
+
 Author: Daniel Vala
 """
 
@@ -38,7 +44,26 @@ def export_figure_png(fig, filename: str, scale: float = 2.0) -> bytes:
 
     Notes
     -----
-    Requires kaleido package for static image export.
+    **Nothing in the GUI calls this, and as things stand it would fail if
+    something did**: static export needs ``kaleido``, which is neither a
+    MMForge dependency nor listed in requirements.txt.
+
+    **How figures actually leave the app**, and what the theme does to
+    them: users export with the camera button in Plotly's own toolbar.
+    That runs in the browser and writes exactly what is on screen, so in
+    dark mode it produces a dark PNG. It cannot be made to do otherwise
+    from here - ``st.plotly_chart`` passes a ``config`` through to
+    Plotly.js, but ``toImageButtonOptions`` only covers size, scale,
+    format and filename, not colours. For a figure destined for a paper,
+    switch the app to the light theme first (toolbar menu, Settings ->
+    Appearance); the charts repaint on the next rerun.
+
+    **If this function is ever wired up**, do not restyle a figure that
+    was built under the dark theme: the trace colours are baked in when
+    the figure is constructed, so re-applying layout styling would leave
+    dark traces on a light background. Build the figure with the light
+    palette in the first place - set ``MMFORGE_FORCE_THEME=light`` around
+    the construction call (see ``utils/theme.py``) - and export that.
     """
     try:
         png_bytes = fig.to_image(format="png", scale=scale)
